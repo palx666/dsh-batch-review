@@ -9,7 +9,7 @@ First public release, merging the former `batch-review-tool` plugin and the
 
 - `batch_review`: one call, one batch, structured `items[].{verdict,note,filled}`,
   `summary` and `report_text` back.
-- Two surfaces, one contract: 1–4 items use the paged native card; 5+ items use the
+- Two surfaces, one contract: a single item uses the paged native card; 2+ items use the
   one-screen panel when its client half is mounted, and fall back to the card when it
   is not. The result's `surface` field says which one answered.
 - Item types: `confirm`, `bool`, `choice`, `text`, `scale`.

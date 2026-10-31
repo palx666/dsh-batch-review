@@ -6,7 +6,7 @@ One `batch_review` tool call hands the agent's checklist to the Web UI as native
 
 ```text
 agent → batch_review({ title, items: [6 items] })
-      → one-screen panel (≥5 items, panel mounted) or native cards
+      → one-screen panel (≥2 items, panel mounted) or native cards
       → { items:[{verdict,note,filled}], summary, report_text }
 ```
 
@@ -32,9 +32,9 @@ An agent that needs a verdict on six checklist items has two bad options today:
 
 | Review size | Surface | What you see |
 |---|---|---|
-| 1–4 items | Native card (same component `ask_user_question` uses) | One question at a time, paged |
-| 5+ items, panel mounted | **One-screen panel** in the composer dock | The whole batch at once: every item, verdict buttons, its own note field, one submit |
-| 5+ items, no client | Native card fallback | Paged, never waits for a panel that cannot answer |
+| 1 item | Native card (same component `ask_user_question` uses) | One question at a time, paged |
+| 2+ items, panel mounted | **One-screen panel** in the composer dock | The whole batch at once: every item, verdict buttons, its own note field, one submit |
+| 2+ items, no client | Native card fallback | Paged, never waits for a panel that cannot answer |
 
 The panel polls `GET /api/batch-review/state` only while it is mounted; if it is not (the user is on another page, the client bundle is not loaded, or the host has no web server), `batch_review` degrades to the native card instead of blocking. The returned `surface` field says which one answered.
 
@@ -112,7 +112,7 @@ Rules the tool enforces for the model:
 
 ## Known limitations
 
-- **One card, one question at a time — below the threshold.** With 1–4 items the native card pages through them (“1 / 4”, previous / next). From 5 items up, the one-screen panel takes over when it is mounted; if it is not, the paged card is still the fallback.
+- **One card, one question at a time — below the threshold.** A single item still uses the native card. From 2 items up, the one-screen panel takes over when it is mounted; if it is not, the paged card is still the fallback.
 - **The panel needs its client half.** It lives in `conversation.input.dock` and only polls while mounted. A host without `webServer`, a client build that does not load the bundle, or a user on another page all mean “no panel”, and the tool degrades to the native card rather than waiting forever.
 - **Root agent only.** `userQuestions.ask()` accepts only the live runtime root, so a subagent cannot call `batch_review`; the call fails with `DELEGATED_CALLER`. This is a host boundary, not a plugin bug.
 - **No persistence.** Nothing is written to disk; if the session ends mid-review the result is `cancelled: true` and the batch must be asked again.

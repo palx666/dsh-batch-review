@@ -24,7 +24,7 @@ import { BatchReviewPanel } from './lib/panel.js';
 export const inject = ['tools', 'userQuestions', 'skills'];
 
 /** Reviews with at least this many items use the panel when it is mounted. */
-const PANEL_THRESHOLD = 5;
+const PANEL_THRESHOLD = 2;
 
 export function apply(ctx) {
   const panel = new BatchReviewPanel({ logger: ctx.logger });

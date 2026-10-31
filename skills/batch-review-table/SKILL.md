@@ -45,7 +45,7 @@ description: Use whenever the user owes a decision — anything where they must 
 
 **注意卡片的真实形态**：一条 `batch_review` 调用会把全部条目排进同一张卡片，但界面**一次只显示一道题**，靠「上一题 / 下一题」逐页作答。条目越多翻页越久——它是「一次问完、逐页回答」，不是「一屏总览」。
 
-**条目 ≥5 时会自动换成一屏面板**：`dsh-batch-review` 装好后，输入框上方会有一个批阅面板；条目 ≥5 且面板在线时，`batch_review` 自动走面板（一屏列全部条目、逐条点结论 + 备注、提交即回传），你**不需要**为此换工具或加参数。面板不在线（用户不在会话页/客户端未加载）时自动退回原生卡片。返回里的 `surface` 字段会写明这次走的是 `panel` 还是 `cards`。
+**条目 ≥2 时会自动换成一屏面板**：`dsh-batch-review` 装好后，输入框上方会有一个批阅面板；条目 ≥2 且面板在线时，`batch_review` 自动走面板（一屏列全部条目、逐条点结论 + 备注、提交即回传），你**不需要**为此换工具或加参数。面板不在线（用户不在会话页/客户端未加载）时自动退回原生卡片。返回里的 `surface` 字段会写明这次走的是 `panel` 还是 `cards`。
 
 ## `batch_review` 用法
 
@@ -96,7 +96,7 @@ description: Use whenever the user owes a decision — anything where they must 
 - 条目很多且批阅面板不可用（客户端未加载 / 用户不在会话页）；
 - 需要把结果持久化成文件（JSON/CSV）留档。
 
-> 面板本身是首选：条目 ≥5 时 `batch_review` 会自动走一屏面板，只有面板确实不可用才需要 HTML。
+> 面板本身是首选：条目 ≥2 时 `batch_review` 会自动走一屏面板，只有面板确实不可用才需要 HTML。
 
 ### 动手前先告诉用户（一次性说清）
 
