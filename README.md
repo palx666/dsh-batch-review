@@ -96,6 +96,18 @@ Rules the tool enforces for the model:
 - `filled: false` must be followed up, never read as approval;
 - `cancelled: true` means there is no verdict at all — re-ask.
 
+## Large batches
+
+- The panel groups **consecutive** items by `group` (falling back to `header`), and every group heading carries 全通过 / 全待定 batch buttons. A 100-item batch is workable when the agent sorts it into groups first; a flat 100-item list is not.
+- From 50 items up the panel shows a hint pointing at CSV/Excel. 1000 items belong in the skill's CSV export (`build_review.py --format csv`, opened in Excel with data validation), not in a click-through panel.
+- Item `group` is optional and free-form; the agent decides the split.
+
+## Routing rule ships with the plugin
+
+`lib/prompt.js` registers a short system-prompt section (~250 chars) that says when to use `batch_review` versus `ask_user_question`, and that a blank item is never an approval. It is present on every request, so other users do not have to copy an `AGENTS.md` rule by hand.
+
+If you would rather own that rule yourself, add your own `AGENTS.md` entry — the plugin section is additive, not exclusive.
+
 ## What ships in the package
 
 | Path | Purpose |
@@ -104,8 +116,10 @@ Rules the tool enforces for the model:
 | `lib/tool.js` | Item validation, `AskUserQuestionItem` mapping, answer folding, report, panel/card routing |
 | `lib/panel.js` | Panel channel: one waiting review, `/api/batch-review` routes, presence |
 | `lib/client.js` | Browser half: the one-screen review panel in `conversation.input.dock` |
+| `lib/prompt.js` | System-prompt routing section (batch_review vs ask_user_question) |
 | `lib/skill.js` | Skill provider for the bundled `batch-review-table` skill |
 | `skills/batch-review-table/SKILL.md` | Decision-channel routing rules and the HTML fallback workflow |
+| `skills/batch-review-table/references/html-fallback.md` | HTML fallback details (protocol, result contract, CSV) — read only when needed |
 | `skills/batch-review-table/assets/review.html` | Self-contained review page (progress, paging, “only unfinished”, copy/download JSON) |
 | `skills/batch-review-table/scripts/build_review.py` | Render a review page (or CSV) from an items JSON |
 | `skills/batch-review-table/scripts/collect_server.py` | Local 127.0.0.1 collector: page → `POST /submit` → result file + stdout |

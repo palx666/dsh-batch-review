@@ -30,9 +30,27 @@ First public release, merging the former `batch-review-tool` plugin and the
 - `header` is capped at 24 characters so a long id cannot crowd the card.
 - Tool description no longer claims a "three or more" floor: the skill's routing rules
   decide which surface to use, and the tool itself accepts any item count.
+- Tool description shortened (~390 → ~250 chars) since it is paid on every request.
 - **Removed** the unused `mode: sequential | independent` parameter. The native card
   pages through items one at a time, so a per-item sequencing mode could not be
   honoured and the field only advertised behaviour it did not have.
+
+### Panel
+
+- Large batches: consecutive items with the same `group` (falling back to `header`)
+  collapse under one heading, and each heading has 全通过 / 全待定 batch buttons. From
+  50 items up the panel hints at the CSV/Excel path; 1000 items are not a panel job.
+- Styling now matches the host question card (title 16px, options/detail/notes 14px,
+  statistics 12px) so the paged card and the panel no longer look like different apps.
+- Option buttons wrap inside the card instead of scrolling horizontally, and the note
+  field follows the wrap.
+- The panel is used from 2 items up (was 5).
+
+### Routing
+
+- `lib/prompt.js` registers a short system-prompt section so the "use batch_review vs
+  ask_user_question, a blank is never an approval" rule ships with the plugin instead of
+  living only in one user's AGENTS.md.
 
 ### Skill
 

@@ -96,6 +96,18 @@ dsh plugin --profile <profile> add dsh-batch-review
 - `filled: false` 必须追问，不能当通过；
 - `cancelled: true` 表示没有任何结论，必须重新发起。
 
+## 大数量批阅
+
+- 面板按 `group`（缺省用 `header`）把**连续**条目分组，每个组头带「全通过 / 全待定」批量按钮。100 条只要 agent 先分类，是可操作的；平铺的 100 条不是。
+- 超过 50 条时面板顶部提示改用 CSV/Excel。1000 条属于技能里的 CSV 导出（`build_review.py --format csv`，用 Excel 打开可加数据验证下拉），不该硬塞进面板。
+- `group` 是可选自由文本，分几类由 agent 决定。
+
+## 路由规则随包分发
+
+`lib/prompt.js` 注册一段很短的 systemPrompt（约 250 字符）：说明 `batch_review` 与 `ask_user_question` 何时用，以及「未填不等于通过」。它每次请求都在，所以其他用户**不需要**手动抄一份 `AGENTS.md` 规则。
+
+如果你想自己管这条规则，照常往 `AGENTS.md` 加即可——插件这段是叠加的，不互斥。
+
 ## 包内有什么
 
 | 路径 | 作用 |
@@ -104,8 +116,10 @@ dsh plugin --profile <profile> add dsh-batch-review
 | `lib/tool.js` | 条目校验、`AskUserQuestionItem` 映射、答案折叠、报告、面板/卡片路由 |
 | `lib/panel.js` | 面板通道：单条等待中的批阅、`/api/batch-review` 路由、在线判定 |
 | `lib/client.js` | 浏览器半区：`conversation.input.dock` 里的一屏批阅面板 |
+| `lib/prompt.js` | systemPrompt 路由段（batch_review vs ask_user_question） |
 | `lib/skill.js` | 内置 `batch-review-table` 技能的 provider |
 | `skills/batch-review-table/SKILL.md` | 决策通道路由规则 + HTML 回退流程 |
+| `skills/batch-review-table/references/html-fallback.md` | HTML 回退细节（协议、结果契约、CSV）——按需读 |
 | `skills/batch-review-table/assets/review.html` | 单文件批阅页（进度条、翻页、只看未完成、复制/下载 JSON） |
 | `skills/batch-review-table/scripts/build_review.py` | 从 items JSON 渲染批阅页（或 CSV） |
 | `skills/batch-review-table/scripts/collect_server.py` | 本机 127.0.0.1 回传服务：页面 → `POST /submit` → 结果文件 + stdout |

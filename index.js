@@ -19,6 +19,7 @@
 import { makeBatchReviewTool } from './lib/tool.js';
 import { registerSkill } from './lib/skill.js';
 import { BatchReviewPanel } from './lib/panel.js';
+import { registerPrompt } from './lib/prompt.js';
 
 /** Services this plugin needs from the host. `webServer` is optional. */
 export const inject = ['tools', 'userQuestions', 'skills'];
@@ -37,6 +38,16 @@ export function apply(ctx) {
   ctx.effect(() => {
     const dispose = registerSkill(ctx);
     return () => dispose();
+  });
+
+  // Routing rule as a prompt section: present on every request, so other users do
+  // not have to copy an AGENTS.md rule by hand. Optional — a composition without
+  // the systemPrompt service still gets the tool and the skill.
+  ctx.effect(() => {
+    const dispose = registerPrompt(ctx);
+    return () => {
+      if (typeof dispose === 'function') dispose();
+    };
   });
 
   // The panel is an optional surface: without a web server the native card still
