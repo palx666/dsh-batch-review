@@ -1,0 +1,57 @@
+{
+  "name": "dsh-batch-review",
+  "version": "1.0.0",
+  "description": "Native per-item review cards for DeepSeek Harness: one batch_review tool call, structured verdicts back — no added UI, no browser page, no local server.",
+  "type": "module",
+  "license": "MIT",
+  "author": "palx666",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/palx666/dsh-batch-review.git"
+  },
+  "homepage": "https://github.com/palx666/dsh-batch-review#readme",
+  "bugs": {
+    "url": "https://github.com/palx666/dsh-batch-review/issues"
+  },
+  "engines": {
+    "dsh": ">=0.2.1-rc.3 <0.3.0-0"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "batch-review",
+    "human-in-the-loop",
+    "approval",
+    "review"
+  ],
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "lib",
+    "skills",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

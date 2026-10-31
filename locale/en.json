@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Batch Review",
+    "description": "Adds a batch_review tool plus the bundled batch-review-table skill: the agent asks for per-item verdicts on three or more items as native Web UI cards, and gets structured answers back — no browser page, no copy-paste."
+  }
+}

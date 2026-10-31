@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>批阅</title>
+<style>
+  :root{
+    --bg:#ffffff; --panel:#ffffff; --fg:#1f2328; --muted:#59636e;
+    --border:#d1d9e0; --subtle:#f6f8fa;
+    --acc:#0969da; --acc-soft:#ddf4ff;
+    --pass:#1a7f37; --pass-soft:#dafbe1;
+    --fail:#cf222e; --fail-soft:#ffebe9;
+    --skip:#9a6700; --skip-soft:#fff8c5;
+    --block:#59636e; --block-soft:#eff2f5;
+    --radius:10px; --shadow:0 1px 2px rgba(31,35,40,.06),0 1px 3px rgba(31,35,40,.04);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0d1117; --panel:#151b23; --fg:#e6edf3; --muted:#9198a1;
+      --border:#3d444d; --subtle:#1c232b; --acc:#4493f8; --acc-soft:#12283d;
+      --pass:#3fb950; --pass-soft:#12261a; --fail:#f85149; --fail-soft:#2d1416;
+      --skip:#d29922; --skip-soft:#2b2111; --block:#9198a1; --block-soft:#1c232b;
+      --shadow:none;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--fg);font:14px/1.55 system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+  .app{max-width:1040px;margin:0 auto;padding:22px 20px 80px}
+  .hd{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+  h1{font-size:19px;line-height:1.3;margin:0 0 4px}
+  .sub{margin:0;color:var(--muted);font-size:12.5px;max-width:640px}
+  .stats{display:flex;gap:6px;flex-wrap:wrap;font-size:12px}
+  .stat{padding:3px 9px;border-radius:999px;border:1px solid var(--border);background:var(--subtle);white-space:nowrap}
+  .stat b{font-variant-numeric:tabular-nums}
+  .stat.pass{color:var(--pass);background:var(--pass-soft);border-color:color-mix(in srgb,var(--pass) 35%,var(--border))}
+  .stat.fail{color:var(--fail);background:var(--fail-soft);border-color:color-mix(in srgb,var(--fail) 35%,var(--border))}
+  .stat.skip{color:var(--skip);background:var(--skip-soft)}
+  .stat.block{color:var(--block);background:var(--block-soft)}
+  .stat.open{color:var(--acc);background:var(--acc-soft)}
+
+  .envbar{padding:9px 12px;border-radius:8px;font-size:12.5px;margin:12px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;line-height:1.5}
+  .envbar.warn{background:#fff8c5;border:1px solid #d4a72c;color:#7d4e00}
+  .envbar[hidden]{display:none}
+  .envbar code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11.5px;background:#fff;padding:1px 6px;border-radius:4px;border:1px solid #d4a72c66}
+  @media (prefers-color-scheme: dark){
+    .envbar.warn{background:#2b2111;border-color:#9e6a03;color:#e3b341}
+    .envbar code{background:#1c232b;border-color:#9e6a0366}
+  }
+  .seqhint{padding:8px 12px;border-radius:8px;font-size:12.5px;margin:10px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;line-height:1.5;background:#fff8c5;border:1px solid #d4a72c;color:#7d4e00}
+  .seqhint[hidden]{display:none}
+  @media (prefers-color-scheme: dark){ .seqhint{background:#2b2111;border-color:#9e6a03;color:#e3b341} }
+
+  .progress{height:6px;border-radius:999px;background:var(--border);margin:14px 0 12px;overflow:hidden}
+  .progress > i{display:block;height:100%;width:0;background:var(--pass);border-radius:999px;transition:width .25s ease}
+
+  .tools{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:16px}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--subtle)}
+  .seg button{border:0;background:transparent;color:var(--muted);padding:6px 12px;font:inherit;font-size:12.5px;cursor:pointer}
+  .seg button.on{background:var(--panel);color:var(--fg);font-weight:600;box-shadow:inset 0 0 0 1px var(--border)}
+  .tools .right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .chk{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none}
+  button.btn{font:inherit;font-size:12.5px;padding:6px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--fg);white-space:nowrap}
+  button.btn:hover{background:var(--subtle)}
+  button.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+  button.btn.primary:hover{filter:brightness(1.06)}
+  button.btn.ghost{color:var(--muted)}
+  button.btn.danger{color:var(--fail);border-color:color-mix(in srgb,var(--fail) 40%,var(--border))}
+  .chan{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .stepnav{display:none;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+  body.sequential .stepnav{display:inline-flex}
+  .stepnav b{font-variant-numeric:tabular-nums;color:var(--fg)}
+
+  .list{display:flex;flex-direction:column;gap:10px}
+  .item{border:1px solid var(--border);border-radius:var(--radius);background:var(--panel);box-shadow:var(--shadow);overflow:hidden}
+  .item.is-focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+  .head{display:flex;gap:10px;align-items:center;padding:10px 12px;cursor:pointer;user-select:none}
+  .head .no{flex:none;min-width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;background:var(--subtle);border:1px solid var(--border);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .item.is-focus .head .no{background:var(--acc);border-color:var(--acc);color:#fff}
+  .head .op{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%}
+  .head .expect{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+  .badge{flex:none;font-size:11.5px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:var(--subtle);white-space:nowrap}
+  .badge.pass{color:var(--pass);background:var(--pass-soft);border-color:color-mix(in srgb,var(--pass) 35%,var(--border))}
+  .badge.fail{color:var(--fail);background:var(--fail-soft);border-color:color-mix(in srgb,var(--fail) 35%,var(--border))}
+  .badge.skip{color:var(--skip);background:var(--skip-soft)}
+  .badge.block{color:var(--block);background:var(--block-soft)}
+  .item.is-blocked .head{opacity:.72}
+
+  .body{display:none;padding:0 12px 14px;border-top:1px dashed var(--border)}
+  .item.open .body{display:block}
+  .kv{display:flex;gap:10px;padding-top:10px;align-items:baseline}
+  .kv > span{flex:none;width:38px;color:var(--muted);font-size:12px}
+  .kv > b{font-weight:500;font-size:13.5px;word-break:break-word}
+  .kv > b.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px}
+
+  .opts{display:flex;flex-direction:column;gap:6px;padding-top:12px}
+  .opt{display:flex;gap:9px;align-items:flex-start;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--subtle)}
+  .opt:hover{border-color:var(--muted)}
+  .opt input{margin:3px 0 0;accent-color:var(--acc);flex:none}
+  .opt .tag{flex:none;font-weight:600;color:var(--muted);font-size:12.5px;min-width:14px}
+  .opt .txt{font-size:13px;line-height:1.45}
+  .opt.on{border-color:var(--acc);background:var(--acc-soft)}
+  .rec{margin-left:auto;flex:none;font-size:10.5px;color:var(--acc);border:1px solid color-mix(in srgb,var(--acc) 40%,var(--border));border-radius:999px;padding:0 6px;line-height:16px}
+
+  .row-fill{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px}
+  .verdicts{display:inline-flex;gap:6px}
+  .v{font:inherit;font-size:12.5px;padding:5px 12px;border-radius:999px;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--muted)}
+  .v:hover{border-color:var(--muted)}
+  .v.on-pass{color:var(--pass);background:var(--pass-soft);border-color:var(--pass);font-weight:600}
+  .v.on-fail{color:var(--fail);background:var(--fail-soft);border-color:var(--fail);font-weight:600}
+  .v.on-skip{color:var(--skip);background:var(--skip-soft);border-color:var(--skip);font-weight:600}
+  .unblock{display:none;font:inherit;font-size:12px;color:var(--acc);background:none;border:0;cursor:pointer;text-decoration:underline;padding:4px}
+  .item.is-blocked .unblock{display:inline}
+
+  .scale{display:inline-flex;gap:6px;margin-top:12px;align-items:center}
+  .scale button{width:40px;height:34px;font:inherit;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--fg);cursor:pointer}
+  .scale button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+  .scale .cap{font-size:11.5px;color:var(--muted);margin:0 2px}
+
+  textarea.note{display:block;width:100%;margin-top:12px;padding:9px 10px;border-radius:8px;border:1px solid var(--border);background:var(--subtle);color:var(--fg);font:inherit;font-size:13px;line-height:1.5;resize:vertical;min-height:38px}
+  textarea.note:focus{outline:2px solid var(--acc-soft);border-color:var(--acc)}
+
+  .ft{margin-top:26px;color:var(--muted);font-size:12px;line-height:1.7}
+
+  dialog{border:1px solid var(--border);border-radius:12px;padding:0;background:var(--panel);color:var(--fg);max-width:460px;width:calc(100vw - 40px);box-shadow:0 12px 40px rgba(0,0,0,.22)}
+  dialog::backdrop{background:rgba(0,0,0,.42)}
+  .dlg-in{padding:18px 20px 16px}
+  .dlg-in h3{margin:0 0 8px;font-size:15px}
+  .dlg-in p{margin:0 0 16px;color:var(--muted);font-size:13px;line-height:1.6}
+  .dlg-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+
+  .panel{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+  .panel[hidden]{display:none}
+  .panel-in{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;width:min(720px,100%)}
+  .panel-in h3{margin:0 0 10px;font-size:14px}
+  .panel-in textarea{width:100%;height:340px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--subtle);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;line-height:1.6;resize:vertical}
+  .panel-in .acts{margin-top:12px;display:flex;gap:8px;justify-content:flex-end}
+
+  .toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,14px);background:#1f2328;color:#fff;font-size:13px;padding:9px 16px;border-radius:999px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:60}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  @media (prefers-color-scheme: dark){ .toast{background:#e6edf3;color:#0d1117} }
+  @media (max-width:640px){ .app{padding:16px 12px 64px} .head .op{max-width:100%;white-space:normal} .head .expect{display:none} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="hd">
+    <div>
+      <h1 id="title"></h1>
+      <p class="sub" id="sub"></p>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div id="envBar" class="envbar" hidden></div>
+  <div class="progress"><i id="bar"></i></div>
+  <div id="seqHint" class="seqhint" hidden></div>
+
+  <div class="tools">
+    <div class="seg" id="modeSeg">
+      <button data-mode="sequential" type="button">顺序模式</button>
+      <button data-mode="independent" type="button">独立模式</button>
+    </div>
+    <div class="right">
+      <span class="stepnav" id="stepnav"></span>
+      <label class="chk"><input type="checkbox" id="onlyOpen"> 只看未完成</label>
+      <button class="btn" id="btnAllPass" type="button">全部通过</button>
+      <button class="btn primary" id="btnSubmit" type="button">提交给我</button>
+      <span id="chanStatus" class="chan"></span>
+      <button class="btn" id="btnCopy" type="button">复制结果</button>
+      <button class="btn" id="btnJson" type="button">下载 JSON</button>
+      <button class="btn ghost" id="btnReset" type="button">清空</button>
+    </div>
+  </div>
+
+  <main class="list" id="list"></main>
+
+  <footer class="ft">
+    <p>「复制结果」只导出<strong>已填写</strong>的条目 —— 没填的不代表通过。刷新前先点「复制结果」或「提交给我」带走。</p>
+    <p>顺序模式：点条目可展开任意一条；填完自动跳到下一条；某条不通过时会问要不要把后面未执行的条目标成「被阻塞」。独立模式没有这个询问。</p>
+  </footer>
+</div>
+
+<dialog id="blockDlg">
+  <div class="dlg-in">
+    <h3 id="blockTitle">未通过</h3>
+    <p id="blockMsg"></p>
+    <div class="dlg-actions">
+      <button class="btn" id="blockNo" type="button">继续测后面的</button>
+      <button class="btn danger" id="blockYes" type="button">标记后续为被阻塞</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="jumpDlg">
+  <div class="dlg-in">
+    <h3>顺序清单：跳过了前面的步骤</h3>
+    <p id="jumpMsg"></p>
+    <div class="dlg-actions">
+      <button class="btn" id="jumpStay" type="button">就从这条开始</button>
+      <button class="btn primary" id="jumpBack" type="button">回到前面</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="panel" id="copyPanel" hidden>
+  <div class="panel-in">
+    <h3>自动复制被浏览器拦下了，手动复制这段：</h3>
+    <textarea id="copyText" readonly></textarea>
+    <div class="acts">
+      <button class="btn" id="copySel" type="button">全选</button>
+      <button class="btn primary" id="copyClose" type="button">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   批阅表格运行时代码（模板，勿直接手改 DATA）
+   DATA 与 FILE_PATH 由 scripts/build_review.py 注入。
+   item.type: confirm | choice | bool | scale | text
+   ============================================================ */
+const DATA = /*__REVIEW_DATA__*/;
+const FILE_PATH = /*__REVIEW_PATH__*/;
+
+const STORE_KEY = "batch-review:" + DATA.id;
+const SUBMIT_PORTS = [8777, 8778, 8779, 8780];
+
+function blankState(){
+  const items = {};
+  (DATA.items || []).forEach(function(it){ items[it.id] = { v: null, n: "", blocked: false, blockedBy: null, assumed: false }; });
+  return {
+    mode: DATA.mode === "sequential" ? "sequential" : "independent",
+    items: items,
+    onlyOpen: false,
+    focus: DATA.items && DATA.items[0] ? DATA.items[0].id : null,
+    _skipConfirm: {}
+  };
+}
+
+function normalize(raw){
+  if(!raw || typeof raw !== "object" || !raw.items) return null;
+  const base = blankState();
+  base.mode = (raw.mode === "sequential" || raw.mode === "independent") ? raw.mode : base.mode;
+  base.onlyOpen = !!raw.onlyOpen;
+  (DATA.items || []).forEach(function(it){
+    const v = raw.items[it.id];
+    if(!v) return;
+    base.items[it.id] = {
+      v: (v.v === undefined ? null : v.v),
+      n: typeof v.n === "string" ? v.n : "",
+      blocked: !!v.blocked,
+      blockedBy: typeof v.blockedBy === "number" ? v.blockedBy : null,
+      assumed: !!v.assumed
+    };
+  });
+  if(typeof raw.focus === "number") base.focus = raw.focus;
+  return base;
+}
+function loadFromLS(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return null;
+    return normalize(JSON.parse(raw));
+  }catch(e){ return null; }
+}
+function loadFromHash(){
+  const h = location.hash;
+  if(!h || h.length < 2) return null;
+  try{ return normalize(JSON.parse(decodeURIComponent(h.slice(1)))); }catch(e){ return null; }
+}
+let state = loadFromLS() || loadFromHash() || blankState();
+
+let _persistTimer = null;
+function persist(){
+  const json = JSON.stringify(state);
+  let lsOK = false;
+  try{
+    localStorage.setItem(STORE_KEY, json);
+    lsOK = (localStorage.getItem(STORE_KEY) === json);
+  }catch(e){ lsOK = false; }
+  if(lsOK){
+    if(location.hash.length > 1){
+      try{ history.replaceState(null, "", location.href.split("#")[0]); }catch(e){}
+    }
+    return;
+  }
+  if(_persistTimer !== null) return;
+  _persistTimer = setTimeout(function(){
+    _persistTimer = null;
+    try{
+      const enc = encodeURIComponent(JSON.stringify(state));
+      if(enc.length > 48000) return;
+      try{ history.replaceState(null, "", "#" + enc); }
+      catch(e){ try{ location.hash = enc; }catch(e2){} }
+    }catch(e){}
+  }, 200);
+}
+
+const $ = function(id){ return document.getElementById(id); };
+function esc(s){
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function metaOf(id){
+  for(let i = 0; i < DATA.items.length; i++){ if(DATA.items[i].id === id) return DATA.items[i]; }
+  return null;
+}
+function titleOf(it){ return it.label || it.op || ("第 " + it.id + " 条"); }
+function subOf(it){ return it.expect || it.boolDesc || ""; }
+function isConfirm(it){ return it.type === "confirm" || !it.type; }
+
+function isDone(id){
+  const s = state.items[id];
+  if(!s) return false;
+  const it = metaOf(id);
+  if(it && it.type === "text") return (typeof s.v === "string") && s.v.trim() !== "";
+  return s.v !== null && s.v !== undefined;
+}
+function filledOf(it){
+  const s = state.items[it.id];
+  if(it.type === "text") return (typeof s.v === "string" && s.v.trim() !== "") || (s.n || "").trim() !== "";
+  if(it.type === "bool") return (s.v !== null && s.v !== undefined) || (s.n || "").trim() !== "";
+  return s.v !== null && s.v !== undefined;
+}
+function statusOf(it){
+  const s = state.items[it.id];
+  if(isConfirm(it)){
+    if(s.blocked) return { key: "block", icon: "⛔", text: "被阻塞" };
+    if(s.v === "pass") return { key: "pass", icon: "✅", text: s.assumed ? "通过（未实测）" : "通过" };
+    if(s.v === "fail") return { key: "fail", icon: "❌", text: "不通过" };
+    if(s.v === "skip") return { key: "skip", icon: "⏭", text: "未测" };
+    return { key: "open", icon: "·", text: "未表态" };
+  }
+  if(filledOf(it)) return { key: "pass", icon: "✅", text: "已填" };
+  return { key: "open", icon: "·", text: "未填" };
+}
+function counts(){
+  const c = { pass: 0, fail: 0, skip: 0, block: 0, open: 0, assumed: 0 };
+  DATA.items.forEach(function(it){
+    const st = statusOf(it);
+    c[st.key] = (c[st.key] || 0) + 1;
+    if(isConfirm(it) && st.key === "pass" && state.items[it.id].assumed) c.assumed++;
+  });
+  return c;
+}
+function firstOpen(fromId){
+  const items = DATA.items;
+  let idx = 0;
+  for(let i = 0; i < items.length; i++){ if(items[i].id === fromId){ idx = i; break; } }
+  for(let i = idx; i < items.length; i++){ if(!isDone(items[i].id)) return items[i].id; }
+  for(let i = 0; i < items.length; i++){ if(!isDone(items[i].id)) return items[i].id; }
+  return null;
+}
+function skippedBefore(id){
+  return DATA.items.filter(function(it){
+    return it.id < id && !isDone(it.id) && !state.items[it.id].blocked;
+  });
+}
+
+/* ---------- render ---------- */
+function renderStats(){
+  const c = counts();
+  $("stats").innerHTML =
+    '<span class="stat pass">通过/已填 <b>' + c.pass + '</b></span>' +
+    '<span class="stat fail">不通过 <b>' + c.fail + '</b></span>' +
+    '<span class="stat block">阻塞 <b>' + c.block + '</b></span>' +
+    '<span class="stat skip">未测 <b>' + c.skip + '</b></span>' +
+    '<span class="stat open">未表态 <b>' + c.open + '</b></span>';
+  const total = DATA.items.length;
+  const done = total - c.open;
+  $("bar").style.width = (total ? (done / total * 100) : 0) + "%";
+}
+function renderStepNav(){
+  const i = DATA.items.findIndex(function(it){ return it.id === state.focus; });
+  $("stepnav").innerHTML = (state.mode === "sequential" && state.focus !== null)
+    ? '第 <b>' + (i + 1) + '</b> / ' + DATA.items.length + ' 步'
+    : '';
+}
+function renderTools(){
+  document.body.classList.toggle("sequential", state.mode === "sequential");
+  Array.prototype.forEach.call($("modeSeg").children, function(b){
+    b.classList.toggle("on", b.dataset.mode === state.mode);
+  });
+  $("onlyOpen").checked = state.onlyOpen;
+  $("btnAllPass").textContent = (state.mode === "sequential") ? "剩余视为通过" : "全部通过";
+}
+function renderSeqHint(){
+  const el = $("seqHint");
+  if(state.mode !== "sequential" || state.focus === null){ el.hidden = true; return; }
+  const skipped = skippedBefore(state.focus);
+  if(!skipped.length){ el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = '⚠ 当前停在第 ' + state.focus + ' 步，前面第 ' + skipped[0].id + '–' + skipped[skipped.length - 1].id +
+    ' 条还没表态。<button class="btn" type="button" data-goto="' + skipped[0].id + '">回到第 ' + skipped[0].id + ' 条</button>';
+}
+
+function controlHTML(it, s){
+  if(isConfirm(it)){
+    const v = s.v;
+    return '<div class="row-fill">' +
+      '<div class="verdicts">' +
+        '<button class="v ' + (v === "pass" ? "on-pass" : "") + '" data-v="pass" type="button">✓ 通过</button>' +
+        '<button class="v ' + (v === "fail" ? "on-fail" : "") + '" data-v="fail" type="button">✗ 不通过</button>' +
+        '<button class="v ' + (v === "skip" ? "on-skip" : "") + '" data-v="skip" type="button">⏭ 未测</button>' +
+      '</div>' +
+      (s.blocked ? '<button class="unblock" data-unblock="' + it.id + '" type="button">取消阻塞</button>' : '') +
+    '</div>';
+  }
+  if(it.type === "choice"){
+    return '<div class="opts">' + (it.options || []).map(function(o){
+      const on = (s.v === o.v);
+      return '<label class="opt' + (on ? " on" : "") + '">' +
+        '<input type="radio" name="q' + it.id + '" value="' + esc(o.v) + '"' + (on ? " checked" : "") + '>' +
+        '<span class="tag">' + esc(o.v) + '</span>' +
+        '<span class="txt">' + esc(o.t) + '</span>' +
+        (o.rec ? '<span class="rec">推荐</span>' : '') +
+      '</label>';
+    }).join("") + '</div>';
+  }
+  if(it.type === "bool"){
+    return '<label class="opt' + (s.v === true ? " on" : "") + '" style="margin-top:12px">' +
+      '<input type="checkbox" data-bool="' + it.id + '"' + (s.v === true ? " checked" : "") + '>' +
+      '<span class="txt">' + esc(it.boolLabel || "是") + '</span>' +
+    '</label>';
+  }
+  if(it.type === "scale"){
+    const min = it.min || 1, max = it.max || 5;
+    let out = '<div class="scale">';
+    if(it.caps && it.caps[0]) out += '<span class="cap">' + esc(it.caps[0]) + '</span>';
+    for(let n = min; n <= max; n++){
+      out += '<button type="button" data-scale="' + n + '" class="' + (s.v === n ? "on" : "") + '">' + n + '</button>';
+    }
+    if(it.caps && it.caps[1]) out += '<span class="cap">' + esc(it.caps[1]) + '</span>';
+    return out + '</div>';
+  }
+  return "";
+}
+
+function itemHTML(it){
+  const s = state.items[it.id];
+  const st = statusOf(it);
+  const isFocus = (state.mode === "sequential" && state.focus === it.id);
+  const open = (state.mode === "independent") || isFocus;
+  const cls = ["item", open ? "open" : "", isFocus ? "is-focus" : "", s.blocked ? "is-blocked" : ""].filter(Boolean).join(" ");
+  const mono = /[@\\/]/.test(subOf(it)) ? " mono" : "";
+  const noteValue = it.type === "text" ? (typeof s.v === "string" ? s.v : "") : (s.n || "");
+  const notePlaceholder = it.type === "text" ? "写下你的回复…" : (s.v === "fail" ? "不通过：实际看到了什么？" : "实际结果 / 备注（可选）");
+  return '<article class="' + cls + '" data-id="' + it.id + '">' +
+    '<div class="head">' +
+      '<span class="no">' + it.id + '</span>' +
+      '<span class="op">' + esc(titleOf(it)) + '</span>' +
+      '<span class="expect">' + esc(subOf(it)) + '</span>' +
+      '<span class="badge ' + st.key + '">' + st.icon + ' ' + st.text + '</span>' +
+    '</div>' +
+    '<div class="body">' +
+      (it.op ? '<div class="kv"><span>操作</span><b>' + esc(it.op) + '</b></div>' : '') +
+      (it.expect ? '<div class="kv"><span>预期</span><b class="' + mono + '">' + esc(it.expect) + '</b></div>' : '') +
+      controlHTML(it, s) +
+      '<textarea class="note" data-note="' + it.id + '" rows="2" placeholder="' + esc(notePlaceholder) + '">' + esc(noteValue) + '</textarea>' +
+    '</div>' +
+  '</article>';
+}
+
+function renderList(){
+  const html = DATA.items
+    .filter(function(it){ return !state.onlyOpen || !isDone(it.id); })
+    .map(itemHTML).join("");
+  $("list").innerHTML = html || '<p style="color:var(--muted)">全部填完了 🎉 点「复制结果」或「提交给我」。</p>';
+  if(state.mode === "sequential" && state.focus !== null && state._scroll){
+    const el = $("list").querySelector('.item[data-id="' + state.focus + '"]');
+    if(el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    state._scroll = false;
+  }
+}
+
+function render(){
+  renderStats();
+  renderStepNav();
+  renderTools();
+  renderSeqHint();
+  renderList();
+  persist();
+}
+
+/* ---------- actions ---------- */
+let pendingFailId = null;
+let pendingJumpId = null;
+
+function advanceAfter(id){
+  if(state.mode !== "sequential") return;
+  const nxt = firstOpen(id);
+  if(nxt !== null && nxt > id){
+    state.focus = nxt;
+    state._scroll = true;
+  } else {
+    state.focus = id;
+  }
+}
+
+function releaseBlockedBy(id){
+  let n = 0;
+  DATA.items.forEach(function(it){
+    const s = state.items[it.id];
+    if(s && s.blocked && s.blockedBy === id){
+      s.blocked = false;
+      s.blockedBy = null;
+      n++;
+    }
+  });
+  return n;
+}
+function closeBlockDialog(){
+  const d = $("blockDlg");
+  if(d && d.open){ try{ d.close(); }catch(e){} }
+}
+function setFocus(id, opts){
+  opts = opts || {};
+  if(!opts.silent && state.mode === "sequential" && !isDone(id) && !(state._skipConfirm && state._skipConfirm[id])){
+    const skipped = skippedBefore(id);
+    if(skipped.length){
+      pendingJumpId = id;
+      const a = skipped[0].id;
+      const b = skipped[skipped.length - 1].id;
+      $("jumpMsg").textContent = "第 " + id + " 条前面的第 " + a + "–" + b + " 条还没表态（共 " +
+        skipped.length + " 条）。顺序清单通常要按顺序做，跳过去可能让后面的结果不准。";
+      $("jumpBack").textContent = "回到第 " + a + " 条";
+      $("jumpDlg").showModal();
+      return;
+    }
+  }
+  state.focus = id;
+  render();
+}
+
+function setVerdict(id, v){
+  const s = state.items[id];
+  const it = metaOf(id);
+  if(!s || !it || !isConfirm(it)) return;
+  if(v === "unblock"){ s.blocked = false; s.blockedBy = null; render(); return; }
+
+  closeBlockDialog();
+
+  const prev = s.v;
+  s.blocked = false;
+  s.blockedBy = null;
+  s.assumed = false;
+  s.v = (prev === v) ? null : v;
+  const cur = s.v;
+
+  let released = 0;
+  if(prev === "fail" && cur !== "fail") released = releaseBlockedBy(id);
+
+  if(cur !== v){
+    if(released) toast("本条不再是不通过，已解除 " + released + " 条被阻塞");
+    render();
+    return;
+  }
+  if(cur === "fail" && state.mode === "sequential"){
+    const rest = DATA.items.filter(function(x){ return x.id > id && !isDone(x.id) && !state.items[x.id].blocked; });
+    if(rest.length > 0){
+      pendingFailId = id;
+      $("blockTitle").textContent = "第 " + id + " 条未通过";
+      $("blockMsg").textContent = "后面还有 " + rest.length + " 条（第 " + rest[0].id + "–" + rest[rest.length - 1].id +
+        " 条）大概率还没执行。要把它们标成「被阻塞、未执行」吗？这样我不会把它们当成没看，也不会当成通过。";
+      $("blockDlg").showModal();
+    } else {
+      advanceAfter(id);
+      render();
+      if(released) toast("已解除 " + released + " 条被阻塞");
+    }
+    return;
+  }
+  advanceAfter(id);
+  render();
+  if(released) toast("已解除 " + released + " 条被阻塞，已跳到下一条");
+}
+
+function markBlockedAfter(id){
+  let n = 0;
+  DATA.items.forEach(function(it){
+    if(it.id > id && !isDone(it.id)){
+      const s = state.items[it.id];
+      s.blocked = true;
+      s.blockedBy = id;
+      n++;
+    }
+  });
+  render();
+  if(n) toast("已标记 " + n + " 条为被阻塞；想继续测的话，点开任意一条作答即可");
+}
+
+/* ---------- report ---------- */
+function pad(n){ return n < 10 ? "0" + n : String(n); }
+function nowStr(){
+  const d = new Date();
+  return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+function answerText(it){
+  const s = state.items[it.id];
+  if(isConfirm(it)){
+    if(s.v === "pass") return "通过" + (s.assumed ? "（未实测）" : "");
+    if(s.v === "fail") return "不通过";
+    if(s.v === "skip") return "未测";
+    if(s.blocked) return "被阻塞";
+    return "";
+  }
+  if(it.type === "choice"){
+    const opts = it.options || [];
+    for(let i = 0; i < opts.length; i++){ if(opts[i].v === s.v) return s.v + ". " + opts[i].t; }
+    return s.v ? String(s.v) : "";
+  }
+  if(it.type === "bool") return s.v === true ? "是" : (s.v === false ? "否" : "");
+  if(it.type === "scale") return s.v + "/" + (it.max || 5);
+  if(it.type === "text") return (typeof s.v === "string" ? s.v : "");
+  return "";
+}
+
+function buildReport(){
+  const lines = [];
+  DATA.items.forEach(function(it){
+    const s = state.items[it.id];
+    const st = statusOf(it);
+    const label = it.id + ". " + titleOf(it);
+    if(st.key === "open"){ lines.push(label + " → （未填）"); return; }
+    if(isConfirm(it) && s.blocked){
+      lines.push(label + " → ⛔ 被 " + (s.blockedBy ? "#" + s.blockedBy : "前序") + " 阻塞，未执行");
+      return;
+    }
+    let line = label + " → " + st.icon + " " + answerText(it);
+    if(it.type !== "text" && (s.n || "").trim()){
+      line += "\n   ⤷ " + (s.n || "").trim().replace(/\n/g, "\n     ");
+    }
+    lines.push(line);
+  });
+
+  const c = counts();
+  const open = DATA.items.filter(function(it){ return statusOf(it).key === "open"; }).map(function(it){ return it.id; });
+  const out = [];
+  out.push("【批阅】" + (DATA.title || ""));
+  out.push("模式：" + (state.mode === "sequential" ? "顺序" : "独立") + " · 共 " + DATA.items.length + " 条");
+  out.push("");
+  out.push(lines.join("\n"));
+  out.push("");
+  out.push("汇总：通过/已填 " + c.pass + (c.assumed ? "（其中未实测 " + c.assumed + "）" : "") +
+    " · 不通过 " + c.fail + " · 被阻塞 " + c.block + " · 未测 " + c.skip + " · 未表态 " + c.open);
+  if(open.length) out.push("未表态：" + open.join("、") + "（没填不代表通过）");
+  if(state.mode === "sequential"){
+    const jumped = DATA.items.filter(function(it){
+      return it.id < state.focus && !isDone(it.id) && !state.items[it.id].blocked;
+    });
+    if(jumped.length){
+      out.push("注意：顺序模式下跳过了第 " + jumped[0].id + "–" + jumped[jumped.length - 1].id +
+        " 条仍未表态的步骤就往下答了。");
+    }
+  }
+  out.push("填写时间：" + nowStr());
+  return out.join("\n");
+}
+
+function reportPayload(){
+  return {
+    title: DATA.title || "",
+    id: DATA.id,
+    mode: state.mode,
+    generated_at: new Date().toISOString(),
+    items: DATA.items.map(function(it){
+      const s = state.items[it.id];
+      const st = statusOf(it);
+      return {
+        id: it.id,
+        type: it.type || "confirm",
+        title: titleOf(it),
+        state: st.key,
+        answer: answerText(it),
+        blocked_by: s.blockedBy,
+        assumed_pass: s.assumed,
+        note: s.n || ""
+      };
+    }),
+    summary: counts(),
+    report_text: buildReport()
+  };
+}
+
+/* ---------- output ---------- */
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ t.classList.remove("show"); }, 2200);
+}
+function showCopyPanel(text){
+  $("copyText").value = text;
+  $("copyPanel").hidden = false;
+  $("copyText").select();
+}
+function fallbackCopy(text, done){
+  try{
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.top = "-1000px";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    if(ok && done) done();
+    return ok;
+  }catch(e){ return false; }
+}
+async function copyReport(){
+  const text = buildReport();
+  try{
+    await navigator.clipboard.writeText(text);
+    toast("已复制，直接粘回聊天窗口即可");
+    return;
+  }catch(e){}
+  if(fallbackCopy(text, function(){ toast("已复制，直接粘回聊天窗口即可"); })) return;
+  showCopyPanel(text);
+}
+function downloadJson(){
+  const blob = new Blob([JSON.stringify(reportPayload(), null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (DATA.id || "review") + ".result.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  toast("已下载 " + (DATA.id || "review") + ".result.json");
+}
+
+/* ---------- L2 channel ---------- */
+let chanPort = null;
+let chanTimer = null;
+let graceTimer = null;
+let hasSubmitted = false;
+
+function submitUrl(port, path){ return "http://127.0.0.1:" + port + path; }
+function setChanStatus(text, ok){
+  const el = $("chanStatus");
+  if(!el) return;
+  el.textContent = text;
+  el.style.color = ok ? "var(--pass)" : "var(--muted)";
+}
+async function probeChannel(){
+  for(let i = 0; i < SUBMIT_PORTS.length; i++){
+    const port = SUBMIT_PORTS[i];
+    try{
+      const r = await fetch(submitUrl(port, "/health"), { cache: "no-store" });
+      if(r.ok){ chanPort = port; return port; }
+    }catch(e){}
+  }
+  chanPort = null;
+  return null;
+}
+function scheduleReconnect(){
+  if(chanTimer) return;
+  chanTimer = setInterval(async function(){
+    const p = await probeChannel();
+    if(p){
+      clearInterval(chanTimer);
+      chanTimer = null;
+      setChanStatus("回传通道：在线", true);
+    }
+  }, 5000);
+}
+async function submitReport(){
+  const payload = reportPayload();
+  const btn = $("btnSubmit");
+  btn.disabled = true;
+  btn.textContent = "提交中…";
+
+  const order = chanPort
+    ? [chanPort].concat(SUBMIT_PORTS.filter(function(p){ return p !== chanPort; }))
+    : SUBMIT_PORTS.slice();
+
+  let httpErr = null;
+  for(let i = 0; i < order.length; i++){
+    try{
+      const r = await fetch(submitUrl(order[i], "/submit"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if(!r.ok){ httpErr = "HTTP " + r.status; continue; }
+      let receipt = null;
+      try{ receipt = await r.json(); }catch(e){}
+      const n = (receipt && typeof receipt.received === "number") ? receipt.received : null;
+      hasSubmitted = true;
+      chanPort = order[i];
+      btn.disabled = false;
+      btn.textContent = "重新提交";
+      setChanStatus("已提交" + (n !== null ? "（" + n + " 条）" : "") + " · 10 秒内可再交", true);
+      toast("已提交" + (n !== null ? "，" + n + " 条" : "") + "；10 秒内改完还能重交");
+      if(graceTimer) clearTimeout(graceTimer);
+      graceTimer = setTimeout(function(){
+        setChanStatus("已交给 agent，这个页面可以关掉了", true);
+      }, 10000);
+      return;
+    }catch(e){}
+  }
+
+  btn.disabled = false;
+  btn.textContent = "提交给我";
+  if(httpErr){
+    setChanStatus("服务出错：" + httpErr, false);
+    toast("服务返回 " + httpErr + "，改用「复制结果」");
+  } else if(hasSubmitted){
+    setChanStatus("通道已关闭，要改请在聊天里说一声", false);
+    toast("通道已关闭，要改请在聊天里说一声");
+  } else {
+    setChanStatus("回传通道：离线（用「复制结果」）", false);
+    toast("连不上本地服务（没启动或被浏览器拦），改用「复制结果」");
+    scheduleReconnect();
+  }
+  showCopyPanel(buildReport());
+}
+
+/* ---------- events ---------- */
+$("list").addEventListener("click", function(e){
+  const t = e.target;
+  const un = t.closest("[data-unblock]");
+  if(un){ setVerdict(Number(un.dataset.unblock), "unblock"); return; }
+  const v = t.closest("[data-v]");
+  if(v){ setVerdict(Number(v.closest(".item").dataset.id), v.dataset.v); return; }
+  const sc = t.closest("[data-scale]");
+  if(sc){
+    const id = Number(sc.closest(".item").dataset.id);
+    const n = Number(sc.dataset.scale);
+    state.items[id].v = (state.items[id].v === n) ? null : n;
+    render();
+    return;
+  }
+  const head = t.closest(".head");
+  if(head && state.mode === "sequential"){
+    const id = Number(head.closest(".item").dataset.id);
+    if(state.focus !== id) setFocus(id);
+  }
+});
+
+$("list").addEventListener("change", function(e){
+  const el = e.target;
+  const art = el.closest(".item");
+  if(!art) return;
+  const id = Number(art.dataset.id);
+  if(el.type === "radio"){ state.items[id].v = el.value; }
+  else if(el.type === "checkbox"){ state.items[id].v = el.checked; }
+  else return;
+  render();
+});
+
+$("list").addEventListener("input", function(e){
+  const ta = e.target.closest("textarea[data-note]");
+  if(!ta) return;
+  const id = Number(ta.dataset.note);
+  const it = metaOf(id);
+  if(it && it.type === "text"){ state.items[id].v = ta.value; }
+  else { state.items[id].n = ta.value; }
+  persist();
+  renderStats();
+});
+
+$("modeSeg").addEventListener("click", function(e){
+  const b = e.target.closest("[data-mode]");
+  if(!b) return;
+  state.mode = b.dataset.mode;
+  if(state.mode === "sequential") state.focus = firstOpen(null) || (DATA.items[0] && DATA.items[0].id);
+  render();
+});
+$("onlyOpen").addEventListener("change", function(){ state.onlyOpen = this.checked; render(); });
+
+$("btnAllPass").addEventListener("click", function(){
+  const openItems = DATA.items.filter(function(it){ return !isDone(it.id) && !state.items[it.id].blocked && isConfirm(it); });
+  if(!openItems.length){ toast("没有需要处理的条目了"); return; }
+  const msg = (state.mode === "sequential")
+    ? "把剩余 " + openItems.length + " 条标记为「通过（未实测）」？"
+    : "把全部 " + openItems.length + " 条标记为「通过」？";
+  if(!confirm(msg)) return;
+  openItems.forEach(function(it){
+    const s = state.items[it.id];
+    s.blocked = false;
+    s.blockedBy = null;
+    s.v = "pass";
+    s.assumed = (state.mode === "sequential");
+  });
+  render();
+});
+
+$("btnSubmit").addEventListener("click", submitReport);
+probeChannel().then(function(p){
+  if(p){ setChanStatus("回传通道：在线", true); }
+  else { setChanStatus("回传通道：未发现服务，自动重试中…", false); scheduleReconnect(); }
+});
+$("btnCopy").addEventListener("click", copyReport);
+$("btnJson").addEventListener("click", downloadJson);
+$("btnReset").addEventListener("click", function(){
+  if(!confirm("清空所有填写内容？此操作不可撤销。")) return;
+  try{ localStorage.removeItem(STORE_KEY); }catch(e){}
+  try{ history.replaceState(null, "", location.href.split("#")[0]); }catch(e){}
+  state = blankState();
+  render();
+});
+
+$("blockYes").addEventListener("click", function(){
+  $("blockDlg").close();
+  if(pendingFailId !== null) markBlockedAfter(pendingFailId);
+  pendingFailId = null;
+});
+$("blockNo").addEventListener("click", function(){
+  $("blockDlg").close();
+  if(pendingFailId !== null){ advanceAfter(pendingFailId); render(); }
+  pendingFailId = null;
+});
+$("blockDlg").addEventListener("close", function(){
+  if($("blockDlg").open) return;
+  pendingFailId = null;
+});
+
+$("jumpStay").addEventListener("click", function(){
+  $("jumpDlg").close();
+  if(pendingJumpId !== null){
+    if(!state._skipConfirm) state._skipConfirm = {};
+    state._skipConfirm[pendingJumpId] = true;
+    setFocus(pendingJumpId, { silent: true });
+  }
+  pendingJumpId = null;
+});
+$("jumpBack").addEventListener("click", function(){
+  $("jumpDlg").close();
+  const target = DATA.items.filter(function(it){ return !isDone(it.id) && !state.items[it.id].blocked; });
+  if(target.length) setFocus(target[0].id, { silent: true });
+  pendingJumpId = null;
+});
+$("jumpDlg").addEventListener("close", function(){
+  if($("jumpDlg").open) return;
+  pendingJumpId = null;
+});
+$("seqHint").addEventListener("click", function(e){
+  const b = e.target.closest("[data-goto]");
+  if(b) setFocus(Number(b.dataset.goto), { silent: true });
+});
+
+$("copyClose").addEventListener("click", function(){ $("copyPanel").hidden = true; });
+$("copySel").addEventListener("click", function(){ $("copyText").select(); });
+$("copyPanel").addEventListener("click", function(e){ if(e.target === $("copyPanel")) $("copyPanel").hidden = true; });
+
+document.addEventListener("keydown", function(e){
+  if((e.ctrlKey || e.metaKey) && e.key === "Enter"){ e.preventDefault(); copyReport(); }
+  if(e.key === "Escape" && !$("copyPanel").hidden){ $("copyPanel").hidden = true; }
+});
+
+/* ---------- boot ---------- */
+$("title").textContent = DATA.title || "批阅";
+$("sub").textContent = (DATA.subtitle ? DATA.subtitle + " · " : "") + "共 " + DATA.items.length + " 条";
+
+(function(){
+  let lsOK = false;
+  try{
+    localStorage.setItem("__probe__", "1");
+    lsOK = (localStorage.getItem("__probe__") === "1");
+    localStorage.removeItem("__probe__");
+  }catch(e){ lsOK = false; }
+  let inFrame = false;
+  try{ inFrame = (window.self !== window.top); }catch(e){ inFrame = true; }
+
+  const bar = $("envBar");
+  if(lsOK && !inFrame){ bar.hidden = true; return; }
+  bar.hidden = false;
+  bar.className = "envbar warn";
+  bar.innerHTML =
+    '<b>预览沙箱：内容不会自动保存，刷新即丢。</b>' +
+    '<span>请用「在应用中打开」在浏览器里填；文件路径：</span>' +
+    '<code>' + esc(FILE_PATH) + '</code>' +
+    '<button class="btn" id="btnCopyPath" type="button">复制路径</button>';
+  $("btnCopyPath").addEventListener("click", function(){
+    const p = FILE_PATH;
+    const done = function(){ toast("路径已复制，粘到浏览器地址栏打开"); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(p).then(done).catch(function(){ fallbackCopy(p, done); });
+    } else { fallbackCopy(p, done); }
+  });
+})();
+
+if(state.focus === null) state.focus = firstOpen(null) || (DATA.items[0] && DATA.items[0].id);
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Unit tests
+        run: node --test
+
+  python-fallback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Render review page from example data
+        run: python skills/batch-review-table/scripts/build_review.py --data examples/items.json --out /tmp/review.html
+      - name: The template placeholder must be replaced
+        run: |
+          if grep -q 'REVIEW_DATA' /tmp/review.html; then
+            echo "template placeholder was not replaced" >&2
+            exit 1
+          fi
+          grep -q '验收：文件复制' /tmp/review.html
+      - name: Compiled collector exists
+        run: python -m py_compile skills/batch-review-table/scripts/collect_server.py

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="批阅表格">
+  <rect x="4" y="8" width="40" height="32" rx="5" fill="#0969da" opacity="0.12"/>
+  <rect x="4" y="8" width="40" height="32" rx="5" fill="none" stroke="#0969da" stroke-width="2.4"/>
+  <path d="M4 18h40" stroke="#0969da" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M18 18v22M32 18v22" stroke="#0969da" stroke-width="1.8" opacity="0.45"/>
+  <path d="M9 25.5l3 3 6-6" fill="none" stroke="#1a7f37" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M23 26.5h6M37 26.5h6M23 33h6" stroke="#59636e" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+</svg>

@@ -1,0 +1,41 @@
+{
+  "id": "acceptance-demo",
+  "title": "验收：文件复制 / 下载按钮",
+  "subtitle": "demo data for build_review.py",
+  "mode": "sequential",
+  "items": [
+    {
+      "id": 1,
+      "type": "confirm",
+      "op": "重启 DSH、刷新页面",
+      "expect": "界面正常，不白屏"
+    },
+    {
+      "id": 2,
+      "type": "choice",
+      "label": "接入方式",
+      "options": [
+        { "v": "A", "t": "直连 18080" },
+        { "v": "B", "t": "走 DSH subagent" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "bool",
+      "label": "网关计划任务常驻",
+      "boolLabel": "接受"
+    },
+    {
+      "id": 4,
+      "type": "scale",
+      "label": "整体评分",
+      "min": 1,
+      "max": 5
+    },
+    {
+      "id": 5,
+      "type": "text",
+      "label": "有没有看着不对的地方"
+    }
+  ]
+}
