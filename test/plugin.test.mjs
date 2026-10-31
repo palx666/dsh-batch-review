@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { apply } from '../index.js';
+import { makeBatchReviewTool } from '../lib/tool.js';
 import { skillProvider, SKILL_NAME } from '../lib/skill.js';
 
 function makeCtx(ask) {
@@ -147,6 +148,73 @@ test('a failed persist never loses the review', async () => {
   assert.equal(result.persisted, null);
   assert.ok(result.persist_error, 'write failure is reported');
   assert.equal(result.summary.filled, 1, 'the verdict itself is still returned');
+});
+
+test('a large review uses the mounted panel instead of the native card', async () => {
+  const panel = {
+    available: () => true,
+    begin: () => ({ id: 'r1', promise: Promise.resolve({ answers: [{ id: '1', selected: ['通过'] }] }) }),
+  };
+  const ctx = makeCtx(async () => {
+    throw new Error('native card must not be used');
+  });
+  const tool = makeBatchReviewTool(ctx, { panel, panelThreshold: 5 });
+  const items = Array.from({ length: 5 }, (_, index) => ({ id: index + 1, type: 'confirm' }));
+
+  const result = await tool.execute({ title: 'big', items }, exec);
+  assert.equal(result.surface, 'panel');
+  assert.equal(result.summary.total, 5);
+  assert.equal(result.summary.filled, 1);
+});
+
+test('a small review still uses the native card even with a mounted panel', async () => {
+  const panel = {
+    available: () => true,
+    begin: () => {
+      throw new Error('panel must not be used');
+    },
+  };
+  const ctx = makeCtx(async () => ({ answers: [] }));
+  const tool = makeBatchReviewTool(ctx, { panel, panelThreshold: 5 });
+
+  const result = await tool.execute({ items: [{ id: 1, type: 'confirm' }] }, exec);
+  assert.equal(result.surface, 'cards');
+  assert.equal(result.cancelled, false);
+});
+
+test('an unmounted panel falls back to the native card', async () => {
+  const panel = {
+    available: () => false,
+    begin: () => {
+      throw new Error('panel must not be used');
+    },
+  };
+  const ctx = makeCtx(async () => ({ answers: [] }));
+  const tool = makeBatchReviewTool(ctx, { panel, panelThreshold: 5 });
+  const items = Array.from({ length: 6 }, (_, index) => ({ id: index + 1, type: 'confirm' }));
+
+  const result = await tool.execute({ items }, exec);
+  assert.equal(result.surface, 'cards');
+});
+
+test('a panel cancel becomes a cancelled result, not an exception', async () => {
+  const panel = {
+    available: () => true,
+    begin: () => ({
+      id: 'r1',
+      promise: Promise.reject(Object.assign(new Error('cancelled'), { code: 'CANCELLED' })),
+    }),
+  };
+  const ctx = makeCtx(async () => {
+    throw new Error('native card must not be used');
+  });
+  const tool = makeBatchReviewTool(ctx, { panel, panelThreshold: 5 });
+  const items = Array.from({ length: 5 }, (_, index) => ({ id: index + 1, type: 'confirm' }));
+
+  const result = await tool.execute({ items }, exec);
+  assert.equal(result.cancelled, true);
+  assert.equal(result.surface, 'panel');
+  assert.equal(result.cancel_reason, 'CANCELLED');
 });
 
 test('the skill provider lists one candidate and returns Markdown without frontmatter', async () => {

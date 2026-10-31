@@ -5,7 +5,9 @@ Per-item review cards for [DeepSeek Harness](https://github.com/deepseek-ai/deep
 One `batch_review` tool call hands the agent's checklist to the Web UI as native question cards and returns one structured result: a verdict and a note per item, plus a ready-to-read report. No added UI, no browser page, no local server — and a blank item never counts as approved.
 
 ```text
-agent → batch_review({ title, items: [6 items] }) → native cards → { items:[{verdict,note,filled}], report_text }
+agent → batch_review({ title, items: [6 items] })
+      → one-screen panel (≥5 items, panel mounted) or native cards
+      → { items:[{verdict,note,filled}], summary, report_text }
 ```
 
 ## Why
@@ -24,6 +26,18 @@ An agent that needs a verdict on six checklist items has two bad options today:
 - **Five item types.** `confirm` (通过 / 不通过 / 未测), `bool`, `choice`, `text`, `scale`.
 - **Bundled skill.** The package also registers the `batch-review-table` skill (decision-channel routing: when to use `ask_user_question` vs `batch_review` vs a full HTML page) so one install covers both halves.
 - **HTML fallback.** For large reviews or when a persisted result is needed, the skill ships a self-contained `review.html` + `build_review.py` + `collect_server.py`.
+
+## Two surfaces, one result shape
+
+| Review size | Surface | What you see |
+|---|---|---|
+| 1–4 items | Native card (same component `ask_user_question` uses) | One question at a time, paged |
+| 5+ items, panel mounted | **One-screen panel** in the composer dock | The whole batch at once: every item, verdict buttons, its own note field, one submit |
+| 5+ items, no client | Native card fallback | Paged, never waits for a panel that cannot answer |
+
+The panel polls `GET /api/batch-review/state` only while it is mounted; if it is not (the user is on another page, the client bundle is not loaded, or the host has no web server), `batch_review` degrades to the native card instead of blocking. The returned `surface` field says which one answered.
+
+Both surfaces return the same contract — `items[].{verdict,note,filled}`, `summary`, `report_text` — so the skill and the agent do not care which one was used.
 
 ## Install
 
@@ -85,8 +99,10 @@ Rules the tool enforces for the model:
 
 | Path | Purpose |
 |---|---|
-| `index.js` | Host plugin: registers the tool and the skill provider |
-| `lib/tool.js` | Item validation, `AskUserQuestionItem` mapping, answer folding, report |
+| `index.js` | Host plugin: registers the tool, the skill provider and the panel routes |
+| `lib/tool.js` | Item validation, `AskUserQuestionItem` mapping, answer folding, report, panel/card routing |
+| `lib/panel.js` | Panel channel: one waiting review, `/api/batch-review` routes, presence |
+| `lib/client.js` | Browser half: the one-screen review panel in `conversation.input.dock` |
 | `lib/skill.js` | Skill provider for the bundled `batch-review-table` skill |
 | `skills/batch-review-table/SKILL.md` | Decision-channel routing rules and the HTML fallback workflow |
 | `skills/batch-review-table/assets/review.html` | Self-contained review page (progress, paging, “only unfinished”, copy/download JSON) |
@@ -95,7 +111,8 @@ Rules the tool enforces for the model:
 
 ## Known limitations
 
-- **One card, one question at a time.** The native card pages through the batch (“1 / 6”, previous / next) rather than showing all items at once. That is fine for a handful of items; for a long checklist use the bundled HTML page, which shows everything in one scrollable list.
+- **One card, one question at a time — below the threshold.** With 1–4 items the native card pages through them (“1 / 4”, previous / next). From 5 items up, the one-screen panel takes over when it is mounted; if it is not, the paged card is still the fallback.
+- **The panel needs its client half.** It lives in `conversation.input.dock` and only polls while mounted. A host without `webServer`, a client build that does not load the bundle, or a user on another page all mean “no panel”, and the tool degrades to the native card rather than waiting forever.
 - **Root agent only.** `userQuestions.ask()` accepts only the live runtime root, so a subagent cannot call `batch_review`; the call fails with `DELEGATED_CALLER`. This is a host boundary, not a plugin bug.
 - **No persistence.** Nothing is written to disk; if the session ends mid-review the result is `cancelled: true` and the batch must be asked again.
 - **Chinese option labels by default.** `confirm` renders 通过 / 不通过 / 未测 and `bool` renders 是 / 否. Edit the constants in `lib/tool.js` if you need another language.
