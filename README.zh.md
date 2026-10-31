@@ -23,7 +23,8 @@ agent 要对 6 条验收项逐一要结论时，现在只有两个坏选择：
 
 - **`batch_review` 工具**：agent 一次传 3 条以上；每条映射为宿主原生卡片上的一道题；返回 `items[].{id,title,type,verdict,note,filled}` + `summary` + `report_text`。
 - **未填 = 未通过（fail-closed）**：跳过或留空的条目返回 `filled: false`，报告里单列「未填：…（没填不代表通过，需要单独追问）」。会话中断则返回 `cancelled: true`、`items: []`——不会静默通过。
-- **五种条目类型**：`confirm`（通过 / 不通过 / 未测）、`bool`、`choice`、`text`、`scale`。
+- **五种条目类型**：`confirm`（通过 / 不通过 / 待定）、`bool`、`choice`、`text`、`scale`。
+- **按需多选**：条目设 `multiSelect: true` 即可多选；结果里 `verdict` 用「、」拼接所有选项，同时新增 `selected[]` 数组保留完整选择。
 - **内置技能**：包内同时注册 `batch-review-table` 技能（决策通道路由：`ask_user_question` / `batch_review` / HTML 表格怎么选），装插件即装技能。
 - **HTML 回退**：条目多或需要落盘时，技能自带 `review.html` + `build_review.py` + `collect_server.py`。
 
@@ -115,7 +116,7 @@ dsh plugin --profile <profile> add dsh-batch-review
 - **面板依赖客户端半区**：面板挂在 `conversation.input.dock`，只在挂载时轮询。宿主没有 `webServer`、客户端没加载 bundle、或用户不在会话页，都等于「面板不在线」，工具会降级到原生卡片而不是一直等。
 - **只有 root agent 能调**：`userQuestions.ask()` 只接受 live runtime root，子代理调用会拿到 `DELEGATED_CALLER`。这是宿主边界，不是插件缺陷。
 - **无持久化**：不落盘；会话中途结束就是 `cancelled: true`，需要重新问一遍。
-- **默认中文选项**：`confirm` 渲染「通过 / 不通过 / 未测」，`bool` 渲染「是 / 否」；要换语言改 `lib/tool.js` 顶部常量。
+- **默认中文选项**：`confirm` 渲染「通过 / 不通过 / 待定」，`bool` 渲染「是 / 否」；要换语言改 `lib/tool.js` 顶部常量。
 - **样式归宿主**：卡片外观、键盘行为、无障碍都由 DSH 提供，本包不加任何 CSS。
 
 ## 开发

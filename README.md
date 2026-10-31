@@ -23,7 +23,8 @@ An agent that needs a verdict on six checklist items has two bad options today:
 
 - **`batch_review` tool.** The agent sends 3+ items in one call. Each item becomes one `AskUserQuestionItem` on the host's native card; the answers come back as `items[].{id,title,type,verdict,note,filled}` plus `summary` and a `report_text` the model can paste into its reply.
 - **Fail-closed blanks.** An item the user skipped or left blank returns `filled: false`. The report lists it under "未填" with the explicit note that it is not a pass. A cancelled session returns `cancelled: true` and no items at all — never a silent pass.
-- **Five item types.** `confirm` (通过 / 不通过 / 未测), `bool`, `choice`, `text`, `scale`.
+- **Five item types.** `confirm` (通过 / 不通过 / 待定), `bool`, `choice`, `text`, `scale`.
+- **Multi-select on request.** Set `multiSelect: true` on any item that accepts more than one label; the answer keeps every label in `verdict` (joined with `、`) and in the new `selected[]` array.
 - **Bundled skill.** The package also registers the `batch-review-table` skill (decision-channel routing: when to use `ask_user_question` vs `batch_review` vs a full HTML page) so one install covers both halves.
 - **HTML fallback.** For large reviews or when a persisted result is needed, the skill ships a self-contained `review.html` + `build_review.py` + `collect_server.py`.
 
@@ -115,7 +116,7 @@ Rules the tool enforces for the model:
 - **The panel needs its client half.** It lives in `conversation.input.dock` and only polls while mounted. A host without `webServer`, a client build that does not load the bundle, or a user on another page all mean “no panel”, and the tool degrades to the native card rather than waiting forever.
 - **Root agent only.** `userQuestions.ask()` accepts only the live runtime root, so a subagent cannot call `batch_review`; the call fails with `DELEGATED_CALLER`. This is a host boundary, not a plugin bug.
 - **No persistence.** Nothing is written to disk; if the session ends mid-review the result is `cancelled: true` and the batch must be asked again.
-- **Chinese option labels by default.** `confirm` renders 通过 / 不通过 / 未测 and `bool` renders 是 / 否. Edit the constants in `lib/tool.js` if you need another language.
+- **Chinese option labels by default.** `confirm` renders 通过 / 不通过 / 待定 and `bool` renders 是 / 否. Edit the constants in `lib/tool.js` if you need another language.
 - **Host-owned styling.** The card look, keyboard behavior and accessibility come from DSH; this package adds no CSS.
 
 ## Development

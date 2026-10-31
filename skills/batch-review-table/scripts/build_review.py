@@ -55,7 +55,7 @@ def render_html(data):
 def render_csv(data):
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["id", "type", "标题", "预期/说明", "状态(通过/不通过/未测/跳过)", "备注"])
+    w.writerow(["id", "type", "标题", "预期/说明", "状态(通过/不通过/待定/跳过)", "备注"])
     for it in data["items"]:
         title = it.get("label") or it.get("op") or ("第 %s 条" % it["id"])
         sub = it.get("expect") or it.get("boolDesc") or ""

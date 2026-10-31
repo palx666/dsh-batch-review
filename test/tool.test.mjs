@@ -32,8 +32,13 @@ test('toQuestion maps confirm items onto the host schema', () => {
     header: '#1',
     multiSelect: false,
     detail: '不白屏',
-    options: [{ label: '通过' }, { label: '不通过' }, { label: '未测' }],
+    options: [{ label: '通过' }, { label: '不通过' }, { label: '待定' }],
   });
+});
+
+test('toQuestion carries multiSelect through to the host schema', () => {
+  assert.equal(toQuestion({ id: 1, type: 'choice', multiSelect: true, options: [{ t: 'A' }] }, 0).multiSelect, true);
+  assert.equal(toQuestion({ id: 2, type: 'confirm' }, 1).multiSelect, false);
 });
 
 test('toQuestion maps bool, scale, choice and text items', () => {
@@ -94,6 +99,15 @@ test('buildRows folds answers and marks blanks as unfilled', () => {
   assert.equal(rows[2].note, '只写了备注');
   assert.equal(rows[2].filled, true);
   assert.equal(rows[3].filled, false);
+});
+
+test('buildRows keeps every multi-select label in verdict and selected', () => {
+  const rows = buildRows([{ id: 1, type: 'choice', multiSelect: true, label: 'm', options: [{ t: 'A' }] }], {
+    answers: [{ id: '1', selected: ['A', 'B'] }],
+  });
+  assert.equal(rows[0].verdict, 'A、B');
+  assert.deepEqual(rows[0].selected, ['A', 'B']);
+  assert.equal(rows[0].filled, true);
 });
 
 test('buildRows tolerates a missing answer payload', () => {

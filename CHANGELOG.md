@@ -13,6 +13,12 @@ First public release, merging the former `batch-review-tool` plugin and the
   one-screen panel when its client half is mounted, and fall back to the card when it
   is not. The result's `surface` field says which one answered.
 - Item types: `confirm`, `bool`, `choice`, `text`, `scale`.
+- Multi-select: `multiSelect: true` on an item keeps every chosen label in `verdict`
+  (joined by 、) and in the new `selected[]` array; the report lists them together.
+- The third confirm state is now 待定 (formerly 未测); the HTML page and CSV header
+  follow the same wording, and the client still tones the legacy 未测 label.
+- Choice options render with A/B/C prefixes in the panel; fixed verdict/bool/scale
+  sets do not.
 - Fail-closed blanks: an unanswered item returns `filled: false` and is listed in the report.
 - Cancelled sessions return `cancelled: true` with no items instead of throwing.
 - Optional `persist` path writes the result as UTF-8 JSON (with `answered_at`) so verdicts

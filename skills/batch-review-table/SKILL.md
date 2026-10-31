@@ -25,8 +25,8 @@ description: Use whenever the user owes a decision — anything where they must 
 |---|---|---|
 | 条数 | 1–2 条 | 3 条以上 |
 | 条目关系 | 选一个/几个（并列或互斥选项） | 每条要**独立结论** |
-| 结论形态 | `selected[]` | 通过 / 不通过 / 未测 + 备注 |
-| 多选 | ✅ 支持 | ❌ 不支持 |
+| 结论形态 | `selected[]` | 通过 / 不通过 / 待定 + 备注 |
+| 多选 | ✅ 支持 | ✅ 支持（条目设 `multiSelect: true`） |
 | 计划批准（plan-review） | ✅ 支持 | ❌ 不支持 |
 | 汇总文本 | ❌ 无 | ✅ `report_text` |
 | 结果契约 | `answers[]` | `items[].filled/verdict/note` |
@@ -34,7 +34,7 @@ description: Use whenever the user owes a decision — anything where they must 
 判定顺序（先命中先用）：
 
 ```
-1. 需要多选，或需要批准计划        → ask_user_question
+1. 需要批准计划（plan-review）      → ask_user_question
 2. 条目 3 条以上且每条要独立结论    → batch_review
 3. 条目 1–2 条的普通选择/确认      → ask_user_question
 4. 条目很多（十几条以上）、要一屏总览、要留档 → HTML 批阅页（见「回退」）
@@ -63,7 +63,8 @@ description: Use whenever the user owes a decision — anything where they must 
 }
 ```
 
-- `type`: `confirm`（通过/不通过/未测）、`choice`、`bool`、`text`、`scale`；
+- `type`: `confirm`（通过/不通过/待定）、`choice`、`bool`、`text`、`scale`；
+- `multiSelect`（可选）：条目加 `"multiSelect": true` 时同题可选多个；结果 `verdict` 用「、」拼接、`selected[]` 保留数组，报告里同样显示多个；
 - `id` 必须唯一：答案按 id 回填，重复的 id 会被工具直接拒绝；
 - `persist`（可选）：把结果另存为 UTF-8 JSON，会话结束后仍可查；返回里 `persisted` 是实际写入的绝对路径，写失败时 `persist_error` 有原因（不影响批阅结果本身）；
 - 工具会挂起等用户点，**不要重复调用**，一次传完所有条目；
@@ -151,7 +152,7 @@ python scripts/build_review.py --data items.json --format csv --out review/<slug
 }
 ```
 
-- `state`：`pass` 通过 / `fail` 不通过 / `skip` 未测 / `block` 被前一条阻塞 / `open` 未表态；
+- `state`：`pass` 通过 / `fail` 不通过 / `skip` 待定 / `block` 被前一条阻塞 / `open` 未表态；
 - `assumed_pass: true` = 用户点了「全部通过」但没实测，转述时必须说明；
 - `blocked_by`：顺序模式下被哪条阻塞（1-based id）；
 - 最省事的是直接读 `report_text`；需要逐条处理再读 `items`。
@@ -163,7 +164,7 @@ python scripts/build_review.py --data items.json --format csv --out review/<slug
 | 通过 / 已填 | 照做 |
 | 不通过 | 当缺陷修；有备注按备注 |
 | 被阻塞 | 等前一条修好再验，不要追问 |
-| 未测 | 问一句怎么验 |
+| 待定 | 问一句怎么验 |
 | 未表态 | **必须追问，不能默认通过** |
 | cancelled | **没有任何结论，重新发起** |
 

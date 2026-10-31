@@ -335,7 +335,7 @@ function statusOf(it){
     if(s.blocked) return { key: "block", icon: "⛔", text: "被阻塞" };
     if(s.v === "pass") return { key: "pass", icon: "✅", text: s.assumed ? "通过（未实测）" : "通过" };
     if(s.v === "fail") return { key: "fail", icon: "❌", text: "不通过" };
-    if(s.v === "skip") return { key: "skip", icon: "⏭", text: "未测" };
+    if(s.v === "skip") return { key: "skip", icon: "⏭", text: "待定" };
     return { key: "open", icon: "·", text: "未表态" };
   }
   if(filledOf(it)) return { key: "pass", icon: "✅", text: "已填" };
@@ -371,7 +371,7 @@ function renderStats(){
     '<span class="stat pass">通过/已填 <b>' + c.pass + '</b></span>' +
     '<span class="stat fail">不通过 <b>' + c.fail + '</b></span>' +
     '<span class="stat block">阻塞 <b>' + c.block + '</b></span>' +
-    '<span class="stat skip">未测 <b>' + c.skip + '</b></span>' +
+    '<span class="stat skip">待定 <b>' + c.skip + '</b></span>' +
     '<span class="stat open">未表态 <b>' + c.open + '</b></span>';
   const total = DATA.items.length;
   const done = total - c.open;
@@ -408,7 +408,7 @@ function controlHTML(it, s){
       '<div class="verdicts">' +
         '<button class="v ' + (v === "pass" ? "on-pass" : "") + '" data-v="pass" type="button">✓ 通过</button>' +
         '<button class="v ' + (v === "fail" ? "on-fail" : "") + '" data-v="fail" type="button">✗ 不通过</button>' +
-        '<button class="v ' + (v === "skip" ? "on-skip" : "") + '" data-v="skip" type="button">⏭ 未测</button>' +
+        '<button class="v ' + (v === "skip" ? "on-skip" : "") + '" data-v="skip" type="button">⏭ 待定</button>' +
       '</div>' +
       (s.blocked ? '<button class="unblock" data-unblock="' + it.id + '" type="button">取消阻塞</button>' : '') +
     '</div>';
@@ -607,7 +607,7 @@ function answerText(it){
   if(isConfirm(it)){
     if(s.v === "pass") return "通过" + (s.assumed ? "（未实测）" : "");
     if(s.v === "fail") return "不通过";
-    if(s.v === "skip") return "未测";
+    if(s.v === "skip") return "待定";
     if(s.blocked) return "被阻塞";
     return "";
   }
@@ -649,7 +649,7 @@ function buildReport(){
   out.push(lines.join("\n"));
   out.push("");
   out.push("汇总：通过/已填 " + c.pass + (c.assumed ? "（其中未实测 " + c.assumed + "）" : "") +
-    " · 不通过 " + c.fail + " · 被阻塞 " + c.block + " · 未测 " + c.skip + " · 未表态 " + c.open);
+    " · 不通过 " + c.fail + " · 被阻塞 " + c.block + " · 待定 " + c.skip + " · 未表态 " + c.open);
   if(open.length) out.push("未表态：" + open.join("、") + "（没填不代表通过）");
   if(state.mode === "sequential"){
     const jumped = DATA.items.filter(function(it){
