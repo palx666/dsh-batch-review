@@ -47,6 +47,7 @@ dsh plugin --profile <profile> add dsh-batch-review
 ```json
 {
   "title": "验收：文件复制 / 下载按钮",
+  "persist": "review/acceptance.json",
   "items": [
     { "id": 1, "type": "confirm", "op": "重启 DSH、刷新页面", "expect": "界面正常，不白屏" },
     { "id": 2, "type": "choice", "label": "接入方式", "options": [{ "v": "A", "t": "直连 18080" }, { "v": "B", "t": "走 DSH subagent" }] },
@@ -67,6 +68,7 @@ dsh plugin --profile <profile> add dsh-batch-review
     { "id": "3", "type": "bool", "verdict": "", "note": "", "filled": false }
   ],
   "summary": { "total": 5, "filled": 4 },
+  "persisted": "/abs/path/review/acceptance.json",
   "report_text": "【批阅】验收：文件复制 / 下载按钮\n共 5 条 · 已填 4 条 · 未填 1 条\n…\n未填：3（没填不代表通过，需要单独追问）"
 }
 ```
@@ -74,6 +76,7 @@ dsh plugin --profile <profile> add dsh-batch-review
 工具对模型的硬约束：
 
 - `items` 必须非空，`id` 必须唯一——答案按 id 回填，重复 id 会被直接拒绝，不会互相覆盖；
+- `persist`（可选）把结果另存为 UTF-8 JSON，会话结束后仍可查；返回的 `persisted` 是实际绝对路径，写失败时 `persist_error` 有原因（不影响批阅结果）；
 - 工具会挂起等用户作答，同一批**不要调两次**；
 - `filled: false` 必须追问，不能当通过；
 - `cancelled: true` 表示没有任何结论，必须重新发起。

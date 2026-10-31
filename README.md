@@ -47,6 +47,7 @@ Requirements: DeepSeek Harness `>=0.2.1-rc.3 <0.3.0-0`. No runtime dependencies,
 ```json
 {
   "title": "Acceptance: file copy / download buttons",
+  "persist": "review/acceptance.json",
   "items": [
     { "id": 1, "type": "confirm", "op": "Restart DSH and reload the page", "expect": "No white screen" },
     { "id": 2, "type": "choice", "label": "Connection mode", "options": [{ "v": "A", "t": "Direct 18080" }, { "v": "B", "t": "Via DSH subagent" }] },
@@ -67,6 +68,7 @@ Result (truncated):
     { "id": "3", "type": "bool", "verdict": "", "note": "", "filled": false }
   ],
   "summary": { "total": 5, "filled": 4 },
+  "persisted": "/abs/path/review/acceptance.json",
   "report_text": "【批阅】Acceptance: file copy / download buttons\n共 5 条 · 已填 4 条 · 未填 1 条\n…\n未填：3（没填不代表通过，需要单独追问）"
 }
 ```
@@ -74,6 +76,7 @@ Result (truncated):
 Rules the tool enforces for the model:
 
 - `items` must be a non-empty array and `id`s must be unique — answers are folded back by id, so a duplicate is rejected instead of silently overwriting;
+- `persist` (optional) writes the result as UTF-8 JSON so the verdicts survive the session; the returned `persisted` field holds the absolute path, and a write failure lands in `persist_error` without affecting the review result;
 - the tool suspends until the user answers; the model must not call it twice for the same batch;
 - `filled: false` must be followed up, never read as approval;
 - `cancelled: true` means there is no verdict at all — re-ask.

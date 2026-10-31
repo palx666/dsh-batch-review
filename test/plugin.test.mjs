@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 import { apply } from '../index.js';
 import { skillProvider, SKILL_NAME } from '../lib/skill.js';
@@ -112,6 +115,38 @@ test('execute rejects an empty or duplicate item list before asking', async () =
     /不能重复/,
   );
   assert.equal(asked, false, 'validation must happen before the user is asked');
+});
+
+test('execute persists the result when persist is set', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'batch-review-'));
+  const target = path.join(dir, 'nested', 'result.json');
+  const ctx = makeCtx(async () => ({ answers: [{ id: '1', selected: ['通过'] }] }));
+  apply(ctx);
+
+  const result = await ctx.registered.tool.execute(
+    { title: 'persist', persist: target, items: [{ id: 1, type: 'confirm' }] },
+    exec,
+  );
+
+  assert.equal(result.persisted, target);
+  const saved = JSON.parse(await readFile(target, 'utf8'));
+  assert.equal(saved.summary.total, 1);
+  assert.equal(saved.items[0].verdict, '通过');
+  assert.ok(saved.answered_at, 'persisted payload records when it was answered');
+});
+
+test('a failed persist never loses the review', async () => {
+  const ctx = makeCtx(async () => ({ answers: [{ id: '1', selected: ['通过'] }] }));
+  apply(ctx);
+
+  const result = await ctx.registered.tool.execute(
+    { persist: tmpdir(), items: [{ id: 1, type: 'confirm' }] },
+    exec,
+  );
+
+  assert.equal(result.persisted, null);
+  assert.ok(result.persist_error, 'write failure is reported');
+  assert.equal(result.summary.filled, 1, 'the verdict itself is still returned');
 });
 
 test('the skill provider lists one candidate and returns Markdown without frontmatter', async () => {
