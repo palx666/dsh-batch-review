@@ -35,7 +35,10 @@
   "files": [
     "index.js",
     "lib",
-    "skills",
+    "skills/batch-review-table/SKILL.md",
+    "skills/batch-review-table/assets/review.html",
+    "skills/batch-review-table/scripts/build_review.py",
+    "skills/batch-review-table/scripts/collect_server.py",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
