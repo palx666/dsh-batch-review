@@ -111,7 +111,9 @@ First public release, merging the former `batch-review-tool` plugin and the
   an invalid explicit value cannot override a panel already showing English.
 - Dictionaries register with the per-locale signature the client runner declares
   (`register(ns, locale, dict)`) and are retried when the locale service appears
-  after the plugin applies; the disposers go back to `ctx.effect`.
+  after the plugin applies; the disposers go back to `ctx.effect`. A re-entry
+  guard keeps the retry from registering the dictionaries twice when the service
+  is already present the first time the effect runs.
 - Verdict tones fall back to the shipped label wording on a host that predates
   the `tone` field, so the group bulk buttons keep working there.
 - Placeholders are substituted in a single pass (`tr`/`fillText`): text that

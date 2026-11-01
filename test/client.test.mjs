@@ -140,3 +140,86 @@ test('buildPatch never leaks untouched keys, which is the P1 regression', () => 
   // in memory and keep applying from the cordis layer.
   assert.deepEqual(buildPatch(fullDraft, baseline), { panelTimeoutMs: 900000 });
 });
+
+/**
+ * The dictionary registration used to be the part of `apply` a fake context made
+ * a no-op (no locale service), so `effects.length === 2` asserted the shell and
+ * not the work. These two cases drive the real service through `ctx.get`, which
+ * is the entry the host actually provides.
+ */
+
+function makeLocaleService() {
+  const calls = [];
+  return {
+    calls,
+    register(ns, locale, dict) {
+      calls.push({ kind: 'register', ns, locale, dict });
+      return () => { calls.push({ kind: 'unregister', locale }); };
+    },
+    getSnapshot() { return { active: 'en' }; },
+  };
+}
+
+function makeClientCtx(get) {
+  const effects = [];
+  return {
+    effects,
+    ctx: {
+      effect(fn) {
+        const dispose = fn();
+        effects.push(dispose);
+        return () => {};
+      },
+      get,
+      slots: {
+        inject() { return () => {}; },
+        register() { return () => {}; },
+      },
+    },
+  };
+}
+
+const REGISTERED = [['dsh-batch-review', 'zh'], ['dsh-batch-review', 'en']];
+
+test('apply registers both dictionaries with the per-locale signature and disposes them', () => {
+  const module = loadModule();
+  const service = makeLocaleService();
+  const { effects, ctx } = makeClientCtx(() => service);
+  module.apply(ctx);
+
+  const registered = service.calls.filter((call) => call.kind === 'register');
+  assert.deepEqual(registered.map((call) => [call.ns, call.locale]), REGISTERED);
+  for (const call of registered) {
+    assert.equal(typeof call.dict, 'object', 'each locale ships a dictionary object');
+    assert.ok(Object.keys(call.dict).length > 0, 'the dictionary is not empty');
+  }
+
+  // The disposers the effect collected must reach both registered locales.
+  effects[1]();
+  assert.deepEqual(
+    service.calls.filter((call) => call.kind === 'unregister').map((call) => call.locale),
+    ['zh', 'en'],
+  );
+});
+
+test('dictionaries are registered when the locale service appears after apply', () => {
+  const module = loadModule();
+  const service = makeLocaleService();
+  const ref = { current: null };
+  const { ctx } = makeClientCtx(() => ref.current);
+  module.apply(ctx);
+
+  assert.equal(service.calls.length, 0, 'a missing service must not register anything');
+
+  // The service appears late; the next resolve (a render calls `activeLang`) registers.
+  ref.current = service;
+  assert.equal(module.__test.activeLang(), 'en');
+  assert.deepEqual(
+    service.calls.filter((call) => call.kind === 'register').map((call) => [call.ns, call.locale]),
+    REGISTERED,
+  );
+
+  // A later resolve reuses the cached service and must not register a second time.
+  module.__test.activeLang();
+  assert.equal(service.calls.filter((call) => call.kind === 'register').length, 2);
+});
