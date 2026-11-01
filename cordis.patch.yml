@@ -17,3 +17,6 @@
         panelTimeoutMs: 900000
         # Largest panel request body accepted, in bytes.
         maxBodyBytes: 67108864
+        # `persist` is model-supplied: by default it may only write inside the
+        # host process cwd subtree. Set true to allow any path on disk.
+        allowExternalPersist: false

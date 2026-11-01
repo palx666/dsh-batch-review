@@ -36,6 +36,7 @@ const DEFAULTS = {
   virtualThreshold: 500,
   panelTimeoutMs: 15 * 60 * 1000,
   maxBodyBytes: 64 * 1024 * 1024,
+  allowExternalPersist: false,
 };
 
 function readConfig(raw) {
@@ -50,6 +51,7 @@ function readConfig(raw) {
     virtualThreshold: num(src.virtualThreshold, DEFAULTS.virtualThreshold, 1),
     panelTimeoutMs: num(src.panelTimeoutMs, DEFAULTS.panelTimeoutMs, 1000),
     maxBodyBytes: num(src.maxBodyBytes, DEFAULTS.maxBodyBytes, 1024),
+    allowExternalPersist: src.allowExternalPersist === true,
   };
 }
 
@@ -67,6 +69,7 @@ export function apply(ctx, rawConfig) {
       panel,
       panelThreshold: config.panelThreshold,
       maxItems: config.maxItems,
+      allowExternalPersist: config.allowExternalPersist,
     }));
     return () => dispose();
   });
