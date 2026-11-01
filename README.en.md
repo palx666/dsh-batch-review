@@ -14,14 +14,17 @@ agent → batch_review({ title, items: [6 items] })
       → { items:[{verdict,note,filled}], summary, report_text }
 ```
 
-## Why
+## Hard rule: if the user owes a decision, call `batch_review`
 
-An agent that needs a verdict on six checklist items has two bad options today:
+**The plugin injects this rule automatically — no setup needed.** It registers a `dsh-batch-review:routing` section in the system prompt (present on every request) and ships a `batch-review-table` skill carrying the same judgement.
 
-- six `ask_user_question` calls — six interruptions, and the agent must stitch the answers back together;
-- asking in prose — the user replies "1 ok, 2 ok, 4 broken", and the model re-parses text into state.
+- **Whenever the user owes an answer** — a confirmation, a choice, an approval, a rejection, a rating, a comment — give them a clickable surface instead of asking in prose.
+- **2+ items that need independent verdicts** → `batch_review`; **a single question or plan approval** → `ask_user_question`.
+- **An unanswered item is not an approval**: `filled: false` must be followed up, never assumed passed.
 
-`batch_review` is the third option: one call, the host's own cards, one machine-readable result. Another failure mode it exists to prevent is the quiet one — an unanswered item being treated as "approved".
+The rule is about the **many-items, one-pass experience**: six `ask_user_question` calls mean six interruptions and answer-stitching, and a prose question means the model re-parses "1 ok, 2 ok, 4 broken". `batch_review` puts the whole batch into one panel above the input box — the user clicks once, the agent gets one machine-readable result back. **Less typing for the user, no guessing for the agent.**
+
+It also closes a quieter failure mode: **an unanswered item being treated as "approved"**.
 
 ## What it does
 
