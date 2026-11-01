@@ -8,11 +8,12 @@ import {
   confirmOptions,
   i18nError,
   localizeError,
+  matchLang,
   messageKeys,
   normalizeLang,
   tr,
 } from '../lib/i18n.js';
-import { buildReport, toQuestion } from '../lib/tool.js';
+import { buildReport, makeBatchReviewTool, toQuestion } from '../lib/tool.js';
 import { BatchReviewPanel } from '../lib/panel.js';
 import { normalize } from '../lib/config.js';
 
@@ -45,6 +46,17 @@ test('normalizeLang maps tags and falls back to the default', () => {
   assert.equal(normalizeLang('fr'), DEFAULT_LANG);
   assert.equal(normalizeLang(undefined), DEFAULT_LANG);
   assert.equal(normalizeLang(''), DEFAULT_LANG);
+});
+
+test('matchLang reports an unsupported tag as null instead of the default', () => {
+  // `null` is what lets the tool try the next preference; folding an unknown tag
+  // into the default language would let `lang: 'fr'` override the panel.
+  assert.equal(matchLang('en-US'), 'en');
+  assert.equal(matchLang('ZH'), 'zh');
+  assert.equal(matchLang('fr'), null);
+  assert.equal(matchLang(''), null);
+  assert.equal(matchLang(undefined), null);
+  assert.equal(matchLang(42), null);
 });
 
 test('confirm and bool labels follow the language and keep their tone', () => {
@@ -131,4 +143,35 @@ test('config validation errors follow the requested language', () => {
   assert.doesNotMatch(en.errors[0], /[\u4e00-\u9fff]/);
   const bool = normalize({ allowExternalPersist: 'yes' }, 'en');
   assert.match(bool.errors[0], /must be true or false/);
+});
+
+test('execute lets an unsupported lang fall through to the panel language', async () => {
+  // Regression lock: `matchLang` must not fold `lang: 'fr'` into the default,
+  // otherwise an invalid explicit value overrides a panel already showing English.
+  const requests = [];
+  const ask = async (request) => {
+    requests.push(request);
+    return { answers: [] };
+  };
+  const panel = new BatchReviewPanel({});
+  panel.learnLocale({ url: '/api/batch-review/state?locale=en' });
+  const tool = makeBatchReviewTool({ userQuestions: { ask } }, { panel });
+  const exec = { agent: {}, signal: new AbortController().signal };
+  const items = [{ id: 1, type: 'confirm', op: 'x' }];
+
+  await tool.execute({ lang: 'fr', items }, exec);
+  assert.equal(requests.at(-1).questions[0].options[0].label, 'Pass');
+
+  // An explicit, supported tag still wins over the panel report.
+  await tool.execute({ lang: 'zh', items }, exec);
+  assert.equal(requests.at(-1).questions[0].options[0].label, '通过');
+
+  // No explicit tag: the panel's report decides.
+  await tool.execute({ items }, exec);
+  assert.equal(requests.at(-1).questions[0].options[0].label, 'Pass');
+
+  // No panel at all: the default language.
+  const bare = makeBatchReviewTool({ userQuestions: { ask } });
+  await bare.execute({ items }, exec);
+  assert.equal(requests.at(-1).questions[0].options[0].label, '通过');
 });

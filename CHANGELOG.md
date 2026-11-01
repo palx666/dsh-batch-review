@@ -106,7 +106,9 @@ First public release, merging the former `batch-review-tool` plugin and the
 - The skill ships `SKILL.md` (Chinese) and `SKILL.en.md` (English).
 - `batch_review` accepts an explicit `lang` (`en`/`zh`) for the panel-less case
   (a script, or a host where the panel never mounted); without it the host uses
-  the language the panel last reported, then Chinese.
+  the language the panel last reported, then Chinese. A tag the package does not
+  ship (`fr`) falls through to that next preference instead of pinning Chinese, so
+  an invalid explicit value cannot override a panel already showing English.
 - Dictionaries register with the per-locale signature the client runner declares
   (`register(ns, locale, dict)`) and are retried when the locale service appears
   after the plugin applies; the disposers go back to `ctx.effect`.
