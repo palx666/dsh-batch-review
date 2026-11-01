@@ -68,7 +68,9 @@ test('the client bundle registers the dock panel and the settings section', () =
     },
   });
 
-  assert.equal(effects.length, 1, 'styles are installed through ctx.effect');
+  // styles + the locale dictionary registration effect (the latter is a no-op
+  // when the fake context has no locale service).
+  assert.equal(effects.length, 2, 'styles and dictionaries are installed through ctx.effect');
   assert.deepEqual(injected, ['conversation.input.dock', 'settings.section']);
   assert.equal(registrations.length, 2);
   const dock = registrations.find((entry) => entry.definition.name === 'conversation.input.dock');

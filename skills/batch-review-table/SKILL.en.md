@@ -81,8 +81,9 @@ Pass every item in one call:
 
 - `type`: `confirm` (pass/fail/pending), `choice`, `bool`, `text`, `scale`;
 - `multiSelect` (optional): `"multiSelect": true` lets one item take several
-  answers; `verdict` joins them with 、 and `selected[]` keeps the array, and the
-  report lists them together;
+  answers; `verdict` joins them with the active language's separator (「、」 in
+  Chinese, ", " in English) and `selected[]` keeps the array, and the report lists
+  them together;
 - `id` must be unique: answers map back by id, and duplicate ids are rejected by
   the tool;
 - `persist` (optional): also writes the result as UTF-8 JSON so it survives the

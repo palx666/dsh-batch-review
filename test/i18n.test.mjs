@@ -13,6 +13,8 @@ import {
   tr,
 } from '../lib/i18n.js';
 import { buildReport, toQuestion } from '../lib/tool.js';
+import { BatchReviewPanel } from '../lib/panel.js';
+import { normalize } from '../lib/config.js';
 
 test('zh and en ship exactly the same message keys', () => {
   // A key that exists in one language and not the other would silently fall back
@@ -92,4 +94,41 @@ test('localizeError rebuilds an i18n error in the target language', () => {
   // A plain error passes through untouched.
   const plain = new Error('boom');
   assert.equal(localizeError(plain, 'en'), plain);
+});
+
+test('tr never re-expands a literal placeholder inside a value', () => {
+  // User text reaches report_text through these templates, so a value that
+  // happens to contain `{total}` must stay literal instead of being substituted.
+  assert.equal(
+    tr('en', 'report.title', { title: 'check {total} items' }),
+    '[Batch review] check {total} items',
+  );
+  assert.equal(tr('zh', 'report.title', { title: '检查 {filled}' }), '【批阅】检查 {filled}');
+  // An unknown template placeholder stays as written rather than being emptied.
+  assert.equal(tr('en', 'report.title', {}), '[Batch review] {title}');
+});
+
+test('panel.learnLocale records the language reported by the client poll', () => {
+  const panel = new BatchReviewPanel({});
+  assert.equal(panel.locale, DEFAULT_LANG);
+  panel.learnLocale({ url: '/api/batch-review/state?locale=en' });
+  assert.equal(panel.locale, 'en');
+  assert.equal(panel.fail('err.itemsEmpty').message, 'items must not be empty');
+  panel.learnLocale({ url: '/api/batch-review/state?locale=zh-CN' });
+  assert.equal(panel.locale, 'zh');
+  // A malformed URL, or no locale at all, must not change the recorded language.
+  panel.learnLocale({ url: 'not a url' });
+  assert.equal(panel.locale, 'zh');
+  panel.learnLocale({ url: '/api/batch-review/state' });
+  assert.equal(panel.locale, 'zh');
+});
+
+test('config validation errors follow the requested language', () => {
+  const zh = normalize({ panelThreshold: 0 });
+  assert.match(zh.errors[0], /必须是/);
+  const en = normalize({ panelThreshold: 0 }, 'en');
+  assert.match(en.errors[0], /must be an integer between/);
+  assert.doesNotMatch(en.errors[0], /[\u4e00-\u9fff]/);
+  const bool = normalize({ allowExternalPersist: 'yes' }, 'en');
+  assert.match(bool.errors[0], /must be true or false/);
 });

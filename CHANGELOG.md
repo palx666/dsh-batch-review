@@ -104,6 +104,16 @@ First public release, merging the former `batch-review-tool` plugin and the
   next to their translated label, so the panel no longer recognises verdict
   buttons by their Chinese text.
 - The skill ships `SKILL.md` (Chinese) and `SKILL.en.md` (English).
+- `batch_review` accepts an explicit `lang` (`en`/`zh`) for the panel-less case
+  (a script, or a host where the panel never mounted); without it the host uses
+  the language the panel last reported, then Chinese.
+- Dictionaries register with the per-locale signature the client runner declares
+  (`register(ns, locale, dict)`) and are retried when the locale service appears
+  after the plugin applies; the disposers go back to `ctx.effect`.
+- Verdict tones fall back to the shipped label wording on a host that predates
+  the `tone` field, so the group bulk buttons keep working there.
+- Placeholders are substituted in a single pass (`tr`/`fillText`): text that
+  itself contains `{total}` stays literal instead of being expanded again.
 
 ### Hardening
 

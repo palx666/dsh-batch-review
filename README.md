@@ -130,6 +130,8 @@ If you would rather own that rule yourself, add your own `AGENTS.md` entry — t
 
 English and Chinese ship in one package. The panel and the Settings → 「批阅面板」 section follow the GUI language (Settings → General) and switch without a reload. The host half has no locale service of its own, so the panel reports the active language on every poll: tool errors, confirm/bool option labels and `report_text` all answer in that language. Without a mounted panel the host falls back to Chinese; a script can pass `?locale=en` to any panel route to set it explicitly. The skill ships `SKILL.md` (Chinese) and `SKILL.en.md` (English).
 
+Without a panel there is no language source, so pass `lang: "en"` (or `"zh"`) on the `batch_review` call — that is the explicit escape hatch. Verdict buttons are recognised by the `tone` field the host puts on each option; a host older than this release (no `tone`) still works through a label fallback, but loses the per-group bulk buttons.
+
 ## Known limitations
 
 - **One card, one question at a time — below the threshold.** A single item still uses the native card. From 2 items up, the one-screen panel takes over when it is mounted; if it is not, the paged card is still the fallback.
