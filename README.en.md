@@ -21,7 +21,7 @@ An agent that needs a verdict on six checklist items has two bad options today:
 - six `ask_user_question` calls — six interruptions, and the agent must stitch the answers back together;
 - asking in prose — the user replies "1 ok, 2 ok, 4 broken", and the model re-parses text into state.
 
-`batch_review` is the third option: one call, the host's own cards, one machine-readable result. The failure mode it exists to prevent is the quiet one — an unanswered item being treated as "approved".
+`batch_review` is the third option: one call, the host's own cards, one machine-readable result. Another failure mode it exists to prevent is the quiet one — an unanswered item being treated as "approved".
 
 ## What it does
 
