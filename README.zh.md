@@ -130,8 +130,10 @@ dsh plugin --profile <profile> add dsh-batch-review
 - **面板依赖客户端半区**：面板挂在 `conversation.input.dock`，只在挂载时轮询。宿主没有 `webServer`、客户端没加载 bundle、或用户不在会话页，都等于「面板不在线」，工具会降级到原生卡片而不是一直等。
 - **只有 root agent 能调**：`userQuestions.ask()` 只接受 live runtime root，子代理调用会拿到 `DELEGATED_CALLER`。这是宿主边界，不是插件缺陷。
 - **无持久化**：不落盘；会话中途结束就是 `cancelled: true`，需要重新问一遍。
+- **条数上限（默认 500）**：超过即**驳回**并提示调用方拆成多批，不进入渲染。所有阈值都在 `cordis.patch.yml` 的 `config` 里改：`maxItems`（驳回上限）、`panelThreshold`（几条起用面板）、`virtualThreshold`（几条起用虚拟滚动）、`panelTimeoutMs`（面板等待超时）、`maxBodyBytes`（面板请求体上限）。
+- **超大面板走虚拟滚动**：超过 `virtualThreshold` 条时只渲染可视窗口（固定行高 100px / 组头 30px），调高 `maxItems` 后上万条仍可滚动浏览。
 - **默认中文选项**：`confirm` 渲染「通过 / 不通过 / 待定」，`bool` 渲染「是 / 否」；要换语言改 `lib/tool.js` 顶部常量。
-- **样式归宿主**：卡片外观、键盘行为、无障碍都由 DSH 提供，本包不加任何 CSS。
+- **样式只用宿主主题变量**：原生卡片的外观完全由 DSH 提供；面板的 CSS 全部使用 `--dsw-*` 主题变量（无硬编码颜色），跟随宿主亮色/暗色切换。
 
 ## 开发
 

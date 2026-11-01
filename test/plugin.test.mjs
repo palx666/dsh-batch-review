@@ -231,3 +231,41 @@ test('the skill provider lists one candidate and returns Markdown without frontm
   assert.ok(skill.content.includes('# 批阅表格'), 'body must be present');
   assert.equal(skill.content.startsWith('---'), false, 'frontmatter must be stripped');
 });
+
+test('a review above maxItems is rejected before anything renders', async () => {
+  const ctx = makeCtx(async () => {
+    throw new Error('must not ask the user');
+  });
+  const tool = makeBatchReviewTool(ctx, { maxItems: 3 });
+  const items = Array.from({ length: 4 }, (_, index) => ({ id: index + 1, type: 'confirm' }));
+
+  await assert.rejects(
+    () => tool.execute({ items }, exec),
+    (error) => error.code === 'TOO_MANY_ITEMS' && /条目过多/.test(error.message),
+  );
+});
+
+test('the default item cap is 500 and the message tells the caller to split', async () => {
+  const ctx = makeCtx(async () => {
+    throw new Error('must not ask the user');
+  });
+  const tool = makeBatchReviewTool(ctx);
+  const items = Array.from({ length: 501 }, (_, index) => ({ id: index + 1, type: 'confirm' }));
+
+  await assert.rejects(
+    () => tool.execute({ items }, exec),
+    (error) => error.code === 'TOO_MANY_ITEMS' && /500/.test(error.message) && /拆成多批/.test(error.message),
+  );
+});
+
+test('exactly maxItems is still accepted', async () => {
+  const ctx = makeCtx(async ({ questions }) => ({
+    answers: questions.map((question) => ({ id: question.id, selected: ['通过'], custom: '' })),
+  }));
+  const tool = makeBatchReviewTool(ctx, { maxItems: 4, panelThreshold: 99 });
+  const items = Array.from({ length: 4 }, (_, index) => ({ id: index + 1, type: 'confirm' }));
+
+  const result = await tool.execute({ items }, exec);
+  assert.equal(result.summary.total, 4);
+  assert.equal(result.summary.filled, 4);
+});

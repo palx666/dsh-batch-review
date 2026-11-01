@@ -130,8 +130,10 @@ If you would rather own that rule yourself, add your own `AGENTS.md` entry — t
 - **The panel needs its client half.** It lives in `conversation.input.dock` and only polls while mounted. A host without `webServer`, a client build that does not load the bundle, or a user on another page all mean “no panel”, and the tool degrades to the native card rather than waiting forever.
 - **Root agent only.** `userQuestions.ask()` accepts only the live runtime root, so a subagent cannot call `batch_review`; the call fails with `DELEGATED_CALLER`. This is a host boundary, not a plugin bug.
 - **No persistence.** Nothing is written to disk; if the session ends mid-review the result is `cancelled: true` and the batch must be asked again.
+- **Item cap (500 by default).** A review above it is **rejected** with a message telling the caller to split the batch; nothing renders. Every tunable lives in `cordis.patch.yml` under `config`: `maxItems` (rejection cap), `panelThreshold` (items needed to use the panel), `virtualThreshold` (rows above which the panel virtualizes), `panelTimeoutMs` (panel wait), `maxBodyBytes` (panel request body cap).
+- **Very large panels virtualize.** Above `virtualThreshold` rows the panel renders only the visible window (fixed 100px rows / 30px group headers), so raising `maxItems` still leaves tens of thousands of items scrollable.
 - **Chinese option labels by default.** `confirm` renders 通过 / 不通过 / 待定 and `bool` renders 是 / 否. Edit the constants in `lib/tool.js` if you need another language.
-- **Host-owned styling.** The card look, keyboard behavior and accessibility come from DSH; this package adds no CSS.
+- **Theme tokens only.** Native cards are styled entirely by DSH; the panel's own CSS uses `--dsw-*` theme tokens exclusively (no literal colors), so it follows the host's light/dark switch.
 
 ## Development
 

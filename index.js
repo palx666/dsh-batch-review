@@ -24,14 +24,50 @@ import { registerPrompt } from './lib/prompt.js';
 /** Services this plugin needs from the host. `webServer` is optional. */
 export const inject = ['tools', 'userQuestions', 'skills'];
 
-/** Reviews with at least this many items use the panel when it is mounted. */
-const PANEL_THRESHOLD = 2;
+/**
+ * Tunables, overridable per profile in `cordis.patch.yml` under the plugin's
+ * `config` key. `maxItems` is a rejection rule, not a rendering limit: reviews
+ * above it are refused so the caller splits the batch instead of asking the
+ * user to click through a wall of rows.
+ */
+const DEFAULTS = {
+  panelThreshold: 2,
+  maxItems: 500,
+  virtualThreshold: 500,
+  panelTimeoutMs: 15 * 60 * 1000,
+  maxBodyBytes: 64 * 1024 * 1024,
+};
 
-export function apply(ctx) {
-  const panel = new BatchReviewPanel({ logger: ctx.logger });
+function readConfig(raw) {
+  const src = raw !== null && typeof raw === 'object' ? raw : {};
+  const num = (value, fallback, min) => {
+    const n = Number(value);
+    return Number.isFinite(n) && n >= min ? Math.floor(n) : fallback;
+  };
+  return {
+    panelThreshold: num(src.panelThreshold, DEFAULTS.panelThreshold, 1),
+    maxItems: num(src.maxItems, DEFAULTS.maxItems, 1),
+    virtualThreshold: num(src.virtualThreshold, DEFAULTS.virtualThreshold, 1),
+    panelTimeoutMs: num(src.panelTimeoutMs, DEFAULTS.panelTimeoutMs, 1000),
+    maxBodyBytes: num(src.maxBodyBytes, DEFAULTS.maxBodyBytes, 1024),
+  };
+}
+
+export function apply(ctx, rawConfig) {
+  const config = readConfig(rawConfig);
+  const panel = new BatchReviewPanel({
+    logger: ctx.logger,
+    timeoutMs: config.panelTimeoutMs,
+    maxBodyBytes: config.maxBodyBytes,
+    virtualThreshold: config.virtualThreshold,
+  });
 
   ctx.effect(() => {
-    const dispose = ctx.tools.register(makeBatchReviewTool(ctx, { panel, panelThreshold: PANEL_THRESHOLD }));
+    const dispose = ctx.tools.register(makeBatchReviewTool(ctx, {
+      panel,
+      panelThreshold: config.panelThreshold,
+      maxItems: config.maxItems,
+    }));
     return () => dispose();
   });
 

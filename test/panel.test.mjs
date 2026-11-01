@@ -109,3 +109,30 @@ test('a route handler refuses a cross-origin POST', async () => {
   assert.equal(response.status, 403);
   assert.equal(response.body.ok, false);
 });
+
+test('state carries the configured virtual threshold', () => {
+  const p = new BatchReviewPanel({ timeoutMs: 50, virtualThreshold: 42 });
+  assert.equal(p.state().virtual_threshold, 42);
+  assert.equal(new BatchReviewPanel({}).state().virtual_threshold, 500, 'default');
+});
+
+test('the configured body cap is used instead of the module default', async () => {
+  const p = new BatchReviewPanel({ timeoutMs: 50, maxBodyBytes: 16 });
+  const route = p.routes().find((entry) => entry.path === ROUTE_BASE + '/submit');
+  const chunks = [Buffer.from('{"id":"x","answers":[]}', 'utf8')];
+  const request = {
+    method: 'POST',
+    headers: {},
+    async *[Symbol.asyncIterator]() {
+      for (const chunk of chunks) yield chunk;
+    },
+  };
+  const response = {
+    status: 0,
+    body: '',
+    writeHead(status) { this.status = status; },
+    end(body) { this.body = body; },
+  };
+  await route.handler(request, response);
+  assert.equal(response.status, 413, 'a 22-byte body must exceed a 16-byte cap');
+});

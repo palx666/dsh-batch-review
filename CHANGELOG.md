@@ -28,6 +28,17 @@ First public release, merging the former `batch-review-tool` plugin and the
 - Host error codes are preserved on the thrown error (`code`, `cause`) instead of
   being flattened into a message.
 - `header` is capped at 24 characters so a long id cannot crowd the card.
+- Item cap: a review above `maxItems` (500 by default) is rejected with a
+  split-the-batch message instead of being rendered. All tunables — `maxItems`,
+  `panelThreshold`, `virtualThreshold`, `panelTimeoutMs`, `maxBodyBytes` — live in
+  `cordis.patch.yml` under `config`, so a profile can change them without forking.
+- Panel rows above `virtualThreshold` (500 by default) virtualize: fixed-height
+  rows, only the visible window is rendered, and group headings plus 全通过/全待定
+  keep working.
+- The panel request body cap is 64 MB (a 100k-item review is ~17 MB of payload and
+  ~4 MB of answers).
+- The item detail line is 12px so the expectation reads as secondary text instead
+  of competing with the title.
 - Tool description no longer claims a "three or more" floor: the skill's routing rules
   decide which surface to use, and the tool itself accepts any item count.
 - Tool description shortened (~390 → ~250 chars) since it is paid on every request.
