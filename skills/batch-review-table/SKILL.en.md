@@ -125,7 +125,7 @@ Use the HTML page instead of forcing the card when any of these holds:
   (`PANEL_TIMEOUT`);
 - there are many items and the panel is unavailable (client not loaded / the user
   is on another page);
-- the result must be archived on disk (JSON / CSV / Excel).
+- the result must be archived on disk (JSON / xlsx / CSV).
 
 ```sh
 python scripts/build_review.py --data items.json --out review/<slug>.html
@@ -135,7 +135,7 @@ python scripts/collect_server.py
 Tell the user to open it in a browser; if submitting fails, use "copy result" and
 paste the JSON back.
 
-> Lifecycle warnings, the return protocol, the result contract and CSV export are
+> Lifecycle warnings, the return protocol, the result contract and the xlsx/csv export are
 > documented in [references/html-fallback.md](references/html-fallback.md); read
 > it when debugging.
 

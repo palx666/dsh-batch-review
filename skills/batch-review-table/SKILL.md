@@ -95,7 +95,7 @@ description: Use whenever the user owes a decision — anything where they must 
 
 - `batch_review` 不在工具列表里、调用失败或面板超时（`PANEL_TIMEOUT`）；
 - 条目很多且面板不可用（客户端未加载 / 用户不在会话页）；
-- 需要把结果落盘留档（JSON / CSV / Excel）。
+- 需要把结果落盘留档（JSON / xlsx / CSV）。
 
 ```sh
 python scripts/build_review.py --data items.json --out review/<slug>.html
@@ -104,7 +104,7 @@ python scripts/collect_server.py
 
 告诉用户用浏览器打开；提交失败就用「复制结果」把 JSON 贴回。
 
-> 详细的生命周期警告、回传协议、结果契约、CSV 导出见
+> 详细的生命周期警告、回传协议、结果契约、xlsx/csv 导出见
 > [references/html-fallback.md](references/html-fallback.md)，需要排错时再读。
 
 ## 结果怎么用

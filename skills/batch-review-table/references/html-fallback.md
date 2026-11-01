@@ -30,13 +30,15 @@ python scripts/collect_server.py
 
 ## 离线导出（不开浏览器）
 
-用户更愿意在文件里改时，直接导 CSV（UTF-8 BOM，Excel 可直接打开），也可以加数据验证下拉：
+用户更愿意在文件里改时，导 Excel（xlsx，状态列**自带下拉**：通过 / 不通过 / 待定 / 跳过）：
 
 ```sh
-python scripts/build_review.py --data items.json --format csv --out review/<slug>.csv
+python scripts/build_review.py --data items.json --format xlsx --out review/<slug>.xlsx
 ```
 
-填完把 CSV 内容发回来即可。CSV 没有进度条 / 阻塞联动，适合条数多但逐条独立的场景。
+没装 `openpyxl` 时脚本会提示并自动降级为 csv（仍可填写，只是没有下拉）；也可以显式 `--format csv`。
+
+填完把文件发回来即可。Excel/CSV 没有进度条 / 阻塞联动，适合条数多但逐条独立的场景。
 
 ## 回传协议（排错用）
 
