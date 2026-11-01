@@ -191,3 +191,16 @@ test('cancelledReport states that no verdict exists', () => {
   assert.match(report, /未获得答复/);
   assert.match(report, /不要把「没答复」当成通过/);
 });
+
+test('titleOf falls back to boolLabel before op', () => {
+  assert.equal(titleOf({ boolLabel: '接受' }, '1'), '接受');
+  assert.equal(titleOf({ boolLabel: '接受', op: 'O' }, '1'), '接受');
+  assert.equal(titleOf({ label: 'L', boolLabel: '接受' }, '1'), 'L');
+});
+
+test('options without a type are a choice', () => {
+  assert.deepEqual(toQuestion({ id: 1, options: [{ t: 'A' }, { t: 'B' }] }, 0).options,
+    [{ label: 'A' }, { label: 'B' }]);
+  assert.equal(buildRows([{ id: 1, options: [{ t: 'A' }] }], { answers: [] })[0].type, 'choice');
+  assert.equal(buildRows([{ id: 2 }], { answers: [] })[0].type, 'confirm', 'still confirm without options');
+});
