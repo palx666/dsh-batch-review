@@ -9,7 +9,7 @@
         panelThreshold: 2
         # Hard rejection above this many items: the tool refuses and tells the
         # caller to split the batch. Raise it if you really need one giant review.
-        maxItems: 500
+        maxItems: 100
         # Above this many rows the panel renders only the visible window.
         virtualThreshold: 500
         # How long the panel waits for an answer before returning a cancelled

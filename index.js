@@ -32,7 +32,7 @@ export const inject = ['tools', 'userQuestions', 'skills'];
  */
 const DEFAULTS = {
   panelThreshold: 2,
-  maxItems: 500,
+  maxItems: 100,
   virtualThreshold: 500,
   panelTimeoutMs: 15 * 60 * 1000,
   maxBodyBytes: 64 * 1024 * 1024,

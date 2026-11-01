@@ -245,16 +245,16 @@ test('a review above maxItems is rejected before anything renders', async () => 
   );
 });
 
-test('the default item cap is 500 and the message tells the caller to split', async () => {
+test('the default item cap is 100 and the message tells the caller to split', async () => {
   const ctx = makeCtx(async () => {
     throw new Error('must not ask the user');
   });
   const tool = makeBatchReviewTool(ctx);
-  const items = Array.from({ length: 501 }, (_, index) => ({ id: index + 1, type: 'confirm' }));
+  const items = Array.from({ length: 101 }, (_, index) => ({ id: index + 1, type: 'confirm' }));
 
   await assert.rejects(
     () => tool.execute({ items }, exec),
-    (error) => error.code === 'TOO_MANY_ITEMS' && /500/.test(error.message) && /拆成多批/.test(error.message),
+    (error) => error.code === 'TOO_MANY_ITEMS' && /100/.test(error.message) && /拆成多批/.test(error.message),
   );
 });
 

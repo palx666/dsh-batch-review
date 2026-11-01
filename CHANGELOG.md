@@ -28,7 +28,7 @@ First public release, merging the former `batch-review-tool` plugin and the
 - Host error codes are preserved on the thrown error (`code`, `cause`) instead of
   being flattened into a message.
 - `header` is capped at 24 characters so a long id cannot crowd the card.
-- Item cap: a review above `maxItems` (500 by default) is rejected with a
+- Item cap: a review above `maxItems` (100 by default) is rejected with a
   split-the-batch message instead of being rendered. All tunables — `maxItems`,
   `panelThreshold`, `virtualThreshold`, `panelTimeoutMs`, `maxBodyBytes` — live in
   `cordis.patch.yml` under `config`, so a profile can change them without forking.
