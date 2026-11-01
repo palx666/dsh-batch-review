@@ -210,7 +210,7 @@ test('buildReport counts filled rows and calls out the blanks', () => {
 test('cancelledReport states that no verdict exists', () => {
   const report = cancelledReport('验收', '会话中断或已取消');
   assert.match(report, /未获得答复/);
-  assert.match(report, /不要把「没答复」当成通过/);
+  assert.match(report, /不要把［没答复］当成通过/);
 });
 
 test('titleOf falls back to boolLabel before op', () => {
