@@ -155,3 +155,5 @@ python skills/batch-review-table/scripts/collect_server.py   # 然后用浏览�
 ## 许可
 
 MIT，见 [LICENSE](LICENSE)。
+
+[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
