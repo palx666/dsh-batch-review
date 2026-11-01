@@ -156,4 +156,8 @@ python skills/batch-review-table/scripts/collect_server.py   # then open review/
 
 MIT — see [LICENSE](LICENSE).
 
+## Built with
+
+Built with [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh): the tool, the panel and the skill are written against its host APIs.
+
 [![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)

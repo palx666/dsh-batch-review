@@ -156,4 +156,8 @@ python skills/batch-review-table/scripts/collect_server.py   # 然后用浏览�
 
 MIT，见 [LICENSE](LICENSE)。
 
+## 制作
+
+使用 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）制作：工具、面板与技能均基于其宿主 API 编写。
+
 [![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
