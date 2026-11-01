@@ -120,5 +120,5 @@ python scripts/collect_server.py
 ## 开工前自检
 
 - 先看工具列表：有 `batch_review` 走批阅通道，没有就退回 `ask_user_question` 或 HTML；
-- 条目十几条以上、要一屏总览或要留档 → 直接走 HTML，不要硬塞卡片；
+- 面板不在线 / 需要落盘留档 / 条目数超过 `maxItems` → 直接走 HTML，不要硬塞卡片；
 - HTML 路径需要四个文件齐全：`SKILL.md`、`assets/review.html`、`scripts/build_review.py`、`scripts/collect_server.py`。

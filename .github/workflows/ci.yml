@@ -26,8 +26,14 @@ jobs:
           node --test --test-reporter=tap 2>&1 | tee /tmp/node-test.tap
           # The TAP summary is asserted explicitly: a summary line that moves or
           # changes shape must fail the job instead of passing on a green pipeline.
-          grep -Eq '^# pass [1-9][0-9]*$' /tmp/node-test.tap \
-            || { echo "::error::node --test reported no passing tests"; exit 1; }
+          # The count is pinned to the actual suite size (raise it when tests are
+          # added) so deleting or skipping a test file turns CI red instead of
+          # passing on a green pipeline.
+          pass=$(grep -E '^# pass [0-9]+$' /tmp/node-test.tap | awk '{print $3}')
+          tests=$(grep -E '^# tests [0-9]+$' /tmp/node-test.tap | awk '{print $3}')
+          [ -n "$pass" ] || { echo "::error::node --test printed no pass summary"; exit 1; }
+          [ "$pass" = "$tests" ] || { echo "::error::pass ($pass) != tests ($tests)"; exit 1; }
+          [ "$pass" -ge 75 ] || { echo "::error::only $pass tests ran; expected at least 75"; exit 1; }
           grep -Eq '^# fail 0$' /tmp/node-test.tap \
             || { echo "::error::node --test reported a non-zero fail count"; exit 1; }
           grep -Eq '^# cancelled 0$' /tmp/node-test.tap \
@@ -48,7 +54,22 @@ jobs:
             echo "template placeholder was not replaced" >&2
             exit 1
           fi
+          if grep -q 'REVIEW_PATH' /tmp/review.html; then
+            echo "the FILE_PATH placeholder was not replaced" >&2
+            exit 1
+          fi
           grep -q '验收：文件复制' /tmp/review.html
+      - name: The payload escapes U+2028/U+2029
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, 'skills/batch-review-table/scripts')
+          from build_review import js_json
+          out = js_json({'a': 'x' + chr(0x2028) + 'y' + chr(0x2029) + 'z'})
+          assert chr(0x2028) not in out and chr(0x2029) not in out, out
+          assert chr(92) + 'u2028' in out and chr(92) + 'u2029' in out, out
+          print('U+2028/U+2029 escaped')
+          PY
       - name: Reviewer text cannot close the page's inline <script>
         shell: bash
         # Items are embedded into the page's inline <script> as a JSON literal, so

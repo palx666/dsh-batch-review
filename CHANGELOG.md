@@ -29,14 +29,17 @@ First public release, merging the former `batch-review-tool` plugin and the
   being flattened into a message.
 - `header` is capped at 24 characters so a long id cannot crowd the card.
 - Item cap: a review above `maxItems` (100 by default) is rejected with a
-  split-the-batch message instead of being rendered. All tunables — `maxItems`,
-  `panelThreshold`, `virtualThreshold`, `panelTimeoutMs`, `maxBodyBytes` — live in
-  `cordis.patch.yml` under `config`, so a profile can change them without forking.
-- Panel rows above `virtualThreshold` (500 by default) virtualize: fixed-height
-  rows, only the visible window is rendered, and group headings plus 全通过/全待定
-  keep working.
-- The panel request body cap is 64 MB (a 100k-item review is ~17 MB of payload and
-  ~4 MB of answers).
+  split-the-batch message instead of being rendered. Tunables live in three
+  layers, lowest first: built-in defaults, the `cordis.patch.yml` `config` block,
+  then `~/.dsh/dsh-batch-review.config.json` written by the Settings section
+  (Settings → left-nav 「批阅面板」). A save writes only the keys that changed, so
+  the cordis layer keeps applying to everything else. Hard limits: `maxItems`
+  1–500, `virtualThreshold` 1–2000, `maxBodyBytes` 1 KB–128 MB.
+- Panel rows above `virtualThreshold` (500 by default) render with
+  `content-visibility: auto`: the browser skips layout/paint for off-screen rows
+  while every row keeps its real height, so group headings and 全通过/全待定 keep
+  working and nothing is clipped.
+- The panel request body cap defaults to 64 MB and can be raised to 128 MB.
 - The item detail line is 12px so the expectation reads as secondary text instead
   of competing with the title.
 - Tool description no longer claims a "three or more" floor: the skill's routing rules
@@ -46,6 +49,15 @@ First public release, merging the former `batch-review-tool` plugin and the
   pages through items one at a time, so a per-item sequencing mode could not be
   honoured and the field only advertised behaviour it did not have.
 
+### Settings
+
+- New `lib/config.js` and a Settings → left-nav 「批阅面板」 section: edit
+  `panelThreshold`, `maxItems`, `panelTimeoutMs` (plus the advanced
+  `virtualThreshold`, `maxBodyBytes`, `allowExternalPersist`) without editing YAML
+  and without a restart. Writes go to `~/.dsh/dsh-batch-review.config.json`.
+- Per-option notes: a choice option's `d` renders beside its label (falling back
+  to `v`), so items written against the older contract keep a note.
+
 ### Panel
 
 - New client half (`lib/client.js`) registers a one-screen review panel in
@@ -54,7 +66,9 @@ First public release, merging the former `batch-review-tool` plugin and the
 - Presence-gated: the tool only waits for the panel while it has polled within the last
   15 seconds (2.5× the idle poll interval plus the request timeout), so a missing client
   degrades to the native card instead of blocking.
-- Cross-origin state changes are refused; the review id is checked on submit; a panel
+- Every route checks the Host header against the loopback names the panel can be
+  reached by (DNS-rebinding defence), cross-origin state changes are refused, the
+  review id is checked on submit; a panel
   review times out after 15 minutes (`PANEL_TIMEOUT`) and is reported as
   `cancelled: true`, never as a pass.
 - Large batches: consecutive items with the same `group` (falling back to `header`)
