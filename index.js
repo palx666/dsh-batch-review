@@ -26,34 +26,46 @@ import { DEFAULTS, LIMITS, configPath, normalize, resolveConfig, writeFileConfig
 export const inject = ['tools', 'userQuestions', 'skills'];
 
 export function apply(ctx, rawConfig) {
-  /** Defaults < cordis config < settings file; the tab mutates this in place. */
+  /** Defaults < cordis config < settings file; the section mutates this in place. */
   const settingsFile = configPath();
+  const { errors: cordisErrors } = normalize(rawConfig);
+  if (cordisErrors.length > 0) {
+    // A typo in the profile patch used to be dropped without a trace: the value
+    // silently fell back to the default while the operator believed it applied.
+    ctx.logger?.warn?.('dsh-batch-review: cordis config 值非法已忽略：' + cordisErrors.join('；'));
+  }
   const config = resolveConfig(rawConfig, settingsFile);
   const panel = new BatchReviewPanel({
     logger: ctx.logger,
     timeoutMs: config.panelTimeoutMs,
     maxBodyBytes: config.maxBodyBytes,
     virtualThreshold: config.virtualThreshold,
-    // Settings → Plugins tab reads and writes these through GET/POST /config.
+    // The Settings → left-nav 「批阅面板」 section reads and writes these through
+    // GET/POST /config.
     settings: {
       path: settingsFile,
       defaults: DEFAULTS,
       limits: LIMITS,
       config,
       save(patch) {
-        const { values, errors } = normalize(patch);
+        const { values, errors, removals } = normalize(patch);
         if (errors.length > 0) {
           const error = new Error(errors.join('；'));
           error.status = 400;
           throw error;
         }
-        writeFileConfig(values, settingsFile);
-        Object.assign(config, values);
+        // Only the keys the page actually changed arrive here (null = drop the
+        // stored override), so saving one field no longer freezes every other
+        // tunable at its resolved value and silently shadows the cordis layer.
+        const next = { ...values };
+        for (const key of removals) next[key] = null;
+        writeFileConfig(next, settingsFile);
+        Object.assign(config, resolveConfig(rawConfig, settingsFile));
         // Panel-side tunables live on the instance, so apply them now instead of
         // asking for a restart.
-        if (values.panelTimeoutMs !== undefined) panel.timeoutMs = values.panelTimeoutMs;
-        if (values.maxBodyBytes !== undefined) panel.maxBodyBytes = values.maxBodyBytes;
-        if (values.virtualThreshold !== undefined) panel.virtualThreshold = values.virtualThreshold;
+        panel.timeoutMs = config.panelTimeoutMs;
+        panel.maxBodyBytes = config.maxBodyBytes;
+        panel.virtualThreshold = config.virtualThreshold;
         return { ...config };
       },
     },

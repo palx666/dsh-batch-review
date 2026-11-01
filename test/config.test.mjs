@@ -66,3 +66,28 @@ test('every default sits inside its limits', () => {
     assert.ok(value >= min && value <= max, key + ' default is inside its limits');
   }
 });
+
+test('a null value deletes the stored override', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-batch-review-config-'));
+  const file = join(dir, 'config.json');
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  writeFileConfig({ panelThreshold: 9 }, file);
+  writeFileConfig({ panelThreshold: null }, file);
+  assert.deepEqual(readFileConfig(file), {});
+  assert.equal(resolveConfig({ panelThreshold: 4 }, file).panelThreshold, 4, 'cordis wins again after the delete');
+});
+
+test('normalize reports removals separately from values', () => {
+  const { values, errors, removals } = normalize({ panelThreshold: null, maxItems: 20 });
+  assert.deepEqual(values, { maxItems: 20 });
+  assert.deepEqual(removals, ['panelThreshold']);
+  assert.equal(errors.length, 0);
+});
+
+test('writeFileConfig creates the parent directory', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'dsh-batch-review-config-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const file = join(root, 'nested', 'deeper', 'config.json');
+  writeFileConfig({ maxItems: 7 }, file);
+  assert.deepEqual(readFileConfig(file), { maxItems: 7 });
+});
