@@ -31,8 +31,8 @@ agent → batch_review({ title, items: [6 items] })
 ## What it does
 
 - **`batch_review` tool.** The agent sends the whole batch in one call. Each item becomes one `AskUserQuestionItem` on the host's native card; the answers come back as `items[].{id,title,type,verdict,note,filled}` plus `summary` and a `report_text` the model can paste into its reply.
-- **Fail-closed blanks.** An item the user skipped or left blank returns `filled: false`. The report lists it under "未填" with the explicit note that it is not a pass. A cancelled session returns `cancelled: true` and no items at all — never a silent pass.
-- **Five item types.** `confirm` (通过 / 不通过 / 待定), `bool`, `choice`, `text`, `scale`.
+- **Fail-closed blanks.** An item the user skipped or left blank returns `filled: false`. The report lists it under "Not answered" with the explicit note that it is not a pass. A cancelled session returns `cancelled: true` and no items at all — never a silent pass.
+- **Five item types.** `confirm` (Pass / Fail / Pending), `bool`, `choice`, `text`, `scale`.
 - **Multi-select on request.** Set `multiSelect: true` on any item that accepts more than one label; the answer keeps every label in `verdict` (joined with `、`) and in the new `selected[]` array.
 - **Bundled skill.** The package also registers the `batch-review-table` skill (decision-channel routing: when to use `ask_user_question` vs `batch_review` vs a full HTML page) so one install covers both halves.
 - **HTML fallback.** For large reviews or when a persisted result is needed, the skill ships a self-contained `review.html` + `build_review.py` + `collect_server.py`.
@@ -103,12 +103,12 @@ Result (truncated):
 {
   "cancelled": false,
   "items": [
-    { "id": "1", "type": "confirm", "verdict": "通过", "note": "", "filled": true },
+    { "id": "1", "type": "confirm", "verdict": "Pass", "note": "", "filled": true },
     { "id": "3", "type": "bool", "verdict": "", "note": "", "filled": false }
   ],
   "summary": { "total": 5, "filled": 4 },
   "persisted": "/abs/path/review/acceptance.json",
-  "report_text": "【批阅】Acceptance: file copy / download buttons\n共 5 条 · 已填 4 条 · 未填 1 条\n…\n未填：3（没填不代表通过，需要单独追问）"
+  "report_text": "[Batch review] Acceptance: file copy / download buttons\n5 items · 4 answered · 1 open\n…\nNot answered: 3 (a blank is never a pass; ask again)"
 }
 ```
 
@@ -124,7 +124,7 @@ Rules the tool enforces for the model:
 
 Three channels, one per size range: **panel → HTML review page → Excel sheet**.
 
-- The panel groups **consecutive** items by `group` (falling back to `header`), and every group heading carries 全通过 / 全待定 batch buttons. A 100-item batch is workable when the agent sorts it into groups first; a flat 100-item list is not.
+- The panel groups **consecutive** items by `group` (falling back to `header`), and every group heading carries All Pass / All Pending batch buttons. A 100-item batch is workable when the agent sorts it into groups first; a flat 100-item list is not.
 - **From 50 items up** the panel shows a hint pointing at the Excel sheet. `build_review.py --format xlsx` writes a sheet whose status column already has a dropdown (通过 / 不通过 / 待定 / 跳过), which suits dozens to a thousand rows — clicking through the HTML page a thousand times is not viable, while Excel takes a dropdown plus a drag-fill.
 - xlsx needs `openpyxl`; without it the script says so and **falls back to csv** automatically (fillable, just no dropdown).
 - Item `group` is optional and free-form; the agent decides the split.
@@ -162,7 +162,7 @@ English and Chinese are both supported, defaulting to the GUI language and switc
 - **Native cards are root-agent only.** `userQuestions.ask()` accepts only the live runtime root, so a subagent that lands on the native card fails with `DELEGATED_CALLER`. The panel path does not go through that host call, so a subagent can still ask through the panel while it is mounted.
 - **Persistence is opt-in.** Nothing about a review is written to disk by default; pass `persist: "<path>"` and the verdicts are saved as UTF-8 JSON (the returned `persisted` field is the absolute path actually written). `persist` is confined to the host process cwd unless the profile sets `allowExternalPersist: true`. Without `persist`, a session that ends mid-review returns `cancelled: true` and the batch must be asked again. The Settings section keeps its own config file (see the cap entry below).
 - **Item cap (100 by default).** A review above it is **rejected** with a message telling the caller to split the batch; nothing renders. To change the cap, see [Settings](#settings).
-- **Large batches skip off-screen paint.** Above `virtualThreshold` rows the panel applies `content-visibility: auto`, so the browser skips layout and paint for rows outside the viewport while every row keeps its real height — no fixed row height, nothing clipped. The defaults (`maxItems: 100`, `virtualThreshold: 500`) keep this path off; lower `virtualThreshold` in Settings → 高级设置 to exercise it.
+- **Large batches skip off-screen paint.** Above `virtualThreshold` rows the panel applies `content-visibility: auto`, so the browser skips layout and paint for rows outside the viewport while every row keeps its real height — no fixed row height, nothing clipped. The defaults (`maxItems: 100`, `virtualThreshold: 500`) keep this path off; lower `virtualThreshold` in Settings → Advanced to exercise it.
 - **Chinese is only the fallback.** With no panel report and no explicit `lang`, option labels (`confirm`: 通过 / 不通过 / 待定, `bool`: 是 / 否) and `report_text` fall back to Chinese. Anywhere else they follow the UI language, or the `lang` argument.
 - **Theme tokens only.** Native cards are styled entirely by DSH; the panel's own CSS uses `--dsw-*` theme tokens exclusively (no literal colors), so it follows the host's light/dark switch. Verified readable on DSH `0.2.1-rc.5` with orca-maid 0.1.1, maid-atelier 0.1.9, orca-link 0.1.9, deep-whale-manager 0.1.8 and maid-whale-webui 0.1.1 (DeepSeek Cloud Paper).
 
