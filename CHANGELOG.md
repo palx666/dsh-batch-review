@@ -57,6 +57,10 @@ First public release, merging the former `batch-review-tool` plugin and the
   and without a restart. Writes go to `~/.dsh/dsh-batch-review.config.json`.
 - Per-option notes: a choice option's `d` renders beside its label (falling back
   to `v`), so items written against the older contract keep a note.
+- The 重置 button says what it does: it fills the defaults in and saves them as
+  explicit settings (which override the cordis layer). To hand a tunable back to
+  the cordis layer, clear its input and save — the cleared field is sent as `null`
+  and the stored override is dropped.
 
 ### Panel
 
@@ -79,6 +83,9 @@ First public release, merging the former `batch-review-tool` plugin and the
 - Option buttons wrap inside the card instead of scrolling horizontally, and the note
   field follows the wrap.
 - The panel is used from 2 items up (was 5).
+- A reverse proxy or tunnel gets no panel: the routes only accept a loopback `Host`,
+  so a GUI reached through one falls back to the native card. The browser console
+  says so once — otherwise "the panel never appears" was undiagnosable.
 
 ### Hardening
 

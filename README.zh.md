@@ -130,6 +130,7 @@ dsh plugin --profile <profile> add dsh-batch-review
 
 - **一次只显示一道题——阈值以下**：1 条走原生卡片，逐页作答；从 2 条起，面板在线时自动换成**一屏面板**，面板不在线时仍退回卡片。
 - **面板依赖客户端半区**：面板挂在 `conversation.input.dock`，只在挂载时轮询。宿主没有 `webServer`、客户端没加载 bundle、或用户不在会话页，都等于「面板不在线」，工具会降级到原生卡片而不是一直等。
+- **面板只接受回环 Host**：接口拒绝 `localhost` / `127.0.0.1` / `::1`（或 socket 自身绑定地址）以外的 `Host`，所以经反代、隧道访问 GUI 时面板不会出现，工具退回原生卡片、结论不丢；浏览器控制台会提示一次。
 - **原生卡片只认 root agent**：`userQuestions.ask()` 只接受 live runtime root，子代理走到卡片路径会拿到 `DELEGATED_CALLER`。面板路径不经过这个宿主调用，所以面板在线时子代理仍能通过面板提问。
 - **持久化需显式开启**：批阅结果默认不落盘；传 `persist: "<路径>"` 才会把结论写成 UTF-8 JSON（返回的 `persisted` 是实际写入的绝对路径）。`persist` 默认只能写宿主进程 cwd 子树，写到别处需在配置里设 `allowExternalPersist: true`。不传的话，会话中途结束就是 `cancelled: true`，需要重新问一遍。设置页会单独写自己的配置文件（见下一条）。
 - **条数上限（默认 100）**：超过即**驳回**并提示调用方拆成多批，不进入渲染。可调项分三层，优先级由低到高：内置默认值 → `cordis.patch.yml` 的 `config` → 设置页写的 `~/.dsh/dsh-batch-review.config.json`（**设置 → 左侧导航「批阅面板」**）。设置页保存只写你改过的键，其余键继续由 cordis 层决定。硬上限：`maxItems` 1–500、`virtualThreshold` 50–2000、`maxBodyBytes` 1 KB–128 MB；默认值分别是 100 / 500 / 64 MB。
