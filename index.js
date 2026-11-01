@@ -20,57 +20,47 @@ import { makeBatchReviewTool } from './lib/tool.js';
 import { registerSkill } from './lib/skill.js';
 import { BatchReviewPanel } from './lib/panel.js';
 import { registerPrompt } from './lib/prompt.js';
+import { DEFAULTS, LIMITS, configPath, normalize, resolveConfig, writeFileConfig } from './lib/config.js';
 
 /** Services this plugin needs from the host. `webServer` is optional. */
 export const inject = ['tools', 'userQuestions', 'skills'];
 
-/**
- * Tunables, overridable per profile in `cordis.patch.yml` under the plugin's
- * `config` key. `maxItems` is a rejection rule, not a rendering limit: reviews
- * above it are refused so the caller splits the batch instead of asking the
- * user to click through a wall of rows.
- */
-const DEFAULTS = {
-  panelThreshold: 2,
-  maxItems: 100,
-  virtualThreshold: 500,
-  panelTimeoutMs: 15 * 60 * 1000,
-  maxBodyBytes: 64 * 1024 * 1024,
-  allowExternalPersist: false,
-};
-
-function readConfig(raw) {
-  const src = raw !== null && typeof raw === 'object' ? raw : {};
-  const num = (value, fallback, min) => {
-    const n = Number(value);
-    return Number.isFinite(n) && n >= min ? Math.floor(n) : fallback;
-  };
-  return {
-    panelThreshold: num(src.panelThreshold, DEFAULTS.panelThreshold, 1),
-    maxItems: num(src.maxItems, DEFAULTS.maxItems, 1),
-    virtualThreshold: num(src.virtualThreshold, DEFAULTS.virtualThreshold, 1),
-    panelTimeoutMs: num(src.panelTimeoutMs, DEFAULTS.panelTimeoutMs, 1000),
-    maxBodyBytes: num(src.maxBodyBytes, DEFAULTS.maxBodyBytes, 1024),
-    allowExternalPersist: src.allowExternalPersist === true,
-  };
-}
-
 export function apply(ctx, rawConfig) {
-  const config = readConfig(rawConfig);
+  /** Defaults < cordis config < settings file; the tab mutates this in place. */
+  const settingsFile = configPath();
+  const config = resolveConfig(rawConfig, settingsFile);
   const panel = new BatchReviewPanel({
     logger: ctx.logger,
     timeoutMs: config.panelTimeoutMs,
     maxBodyBytes: config.maxBodyBytes,
     virtualThreshold: config.virtualThreshold,
+    // Settings → Plugins tab reads and writes these through GET/POST /config.
+    settings: {
+      path: settingsFile,
+      defaults: DEFAULTS,
+      limits: LIMITS,
+      config,
+      save(patch) {
+        const { values, errors } = normalize(patch);
+        if (errors.length > 0) {
+          const error = new Error(errors.join('；'));
+          error.status = 400;
+          throw error;
+        }
+        writeFileConfig(values, settingsFile);
+        Object.assign(config, values);
+        // Panel-side tunables live on the instance, so apply them now instead of
+        // asking for a restart.
+        if (values.panelTimeoutMs !== undefined) panel.timeoutMs = values.panelTimeoutMs;
+        if (values.maxBodyBytes !== undefined) panel.maxBodyBytes = values.maxBodyBytes;
+        if (values.virtualThreshold !== undefined) panel.virtualThreshold = values.virtualThreshold;
+        return { ...config };
+      },
+    },
   });
 
   ctx.effect(() => {
-    const dispose = ctx.tools.register(makeBatchReviewTool(ctx, {
-      panel,
-      panelThreshold: config.panelThreshold,
-      maxItems: config.maxItems,
-      allowExternalPersist: config.allowExternalPersist,
-    }));
+    const dispose = ctx.tools.register(makeBatchReviewTool(ctx, { panel, config }));
     return () => dispose();
   });
 

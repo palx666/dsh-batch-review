@@ -100,7 +100,7 @@ test('a review without an answer times out', async () => {
   assert.equal(p.state().pending, null);
 });
 
-test('routes expose state/submit/cancel/health', () => {
+test('routes expose state/submit/cancel/health/config', () => {
   const p = panel();
   const routes = p.routes();
   assert.deepEqual(
@@ -110,6 +110,7 @@ test('routes expose state/submit/cancel/health', () => {
       'exact ' + ROUTE_BASE + '/submit',
       'exact ' + ROUTE_BASE + '/cancel',
       'exact ' + ROUTE_BASE + '/health',
+      'exact ' + ROUTE_BASE + '/config',
     ],
   );
 });
@@ -208,4 +209,55 @@ test('the configured body cap is used instead of the module default', async () =
   };
   await route.handler(request, response);
   assert.equal(response.status, 413, 'a 22-byte body must exceed a 16-byte cap');
+});
+
+test('config route answers 404 when the host wired no settings bridge', async () => {
+  const p = panel();
+  const route = p.routes().find((entry) => entry.path === ROUTE_BASE + '/config');
+  const getResponse = fakeResponse();
+  await route.handler({ method: 'GET', headers: {} }, getResponse);
+  assert.equal(getResponse.status, 404);
+
+  const postResponse = fakeResponse();
+  await route.handler(fakePost({}, '{}'), postResponse);
+  assert.equal(postResponse.status, 404);
+});
+
+test('the config route reads with GET and writes with POST on one path', async () => {
+  const config = { panelThreshold: 3, maxItems: 50, allowExternalPersist: false };
+  const saved = [];
+  const p = panel({
+    settings: {
+      path: 'C:/tmp/batch-review.json',
+      defaults: { panelThreshold: 2 },
+      limits: { panelThreshold: { min: 1, max: 100 } },
+      config,
+      save(patch) {
+        saved.push(patch);
+        return { ...config, ...patch };
+      },
+    },
+  });
+
+  const route = p.routes().find((entry) => entry.path === ROUTE_BASE + '/config');
+  const getResponse = fakeResponse();
+  await route.handler({ method: 'GET', headers: {} }, getResponse);
+  assert.equal(getResponse.status, 200);
+  assert.equal(getResponse.body.path, 'C:/tmp/batch-review.json');
+  assert.equal(getResponse.body.config.panelThreshold, 3);
+  assert.deepEqual(getResponse.body.defaults, { panelThreshold: 2 });
+
+  const postResponse = fakeResponse();
+  await route.handler(fakePost({}, JSON.stringify({ panelThreshold: 5 })), postResponse);
+  assert.equal(postResponse.status, 200);
+  assert.deepEqual(saved, [{ panelThreshold: 5 }]);
+  assert.equal(postResponse.body.config.panelThreshold, 5);
+});
+
+test('the config route rejects a method it does not serve', async () => {
+  const p = panel({ settings: { path: 'x', defaults: {}, limits: {}, config: {}, save: () => ({}) } });
+  const route = p.routes().find((entry) => entry.path === ROUTE_BASE + '/config');
+  const response = fakeResponse();
+  await route.handler({ method: 'DELETE', headers: {} }, response);
+  assert.equal(response.status, 405);
 });

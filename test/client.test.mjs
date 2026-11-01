@@ -43,9 +43,10 @@ function loadModule() {
   });
 }
 
-test('the client bundle registers a dock panel', () => {
+test('the client bundle registers the dock panel and the settings section', () => {
   const registrations = [];
   const effects = [];
+  const injected = [];
   const module = loadModule();
   assert.deepEqual(module.inject, ['slots']);
 
@@ -56,8 +57,9 @@ test('the client bundle registers a dock panel', () => {
     },
     slots: {
       inject(name, factory) {
-        assert.equal(name, 'conversation.input.dock');
-        factory();
+        injected.push(name);
+        if (name === 'conversation.input.dock' || name === 'settings.section') factory();
+        return () => {};
       },
       register(definition, component) {
         registrations.push({ definition, component });
@@ -67,10 +69,14 @@ test('the client bundle registers a dock panel', () => {
   });
 
   assert.equal(effects.length, 1, 'styles are installed through ctx.effect');
-  assert.equal(registrations.length, 1);
-  assert.equal(registrations[0].definition.name, 'conversation.input.dock');
-  assert.equal(registrations[0].definition.id, 'batch-review-panel');
-  assert.equal(typeof registrations[0].component, 'function');
+  assert.deepEqual(injected, ['conversation.input.dock', 'settings.section']);
+  assert.equal(registrations.length, 2);
+  const dock = registrations.find((entry) => entry.definition.name === 'conversation.input.dock');
+  const section = registrations.find((entry) => entry.definition.name === 'settings.section');
+  assert.equal(dock.definition.id, 'batch-review-panel');
+  assert.equal(typeof dock.component, 'function');
+  assert.equal(section.definition.id, 'batch-review');
+  assert.equal(typeof section.component, 'function');
 });
 
 test('a composition without the dock slot does not throw', () => {
