@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -7,6 +7,19 @@ import path from 'node:path';
 import { apply } from '../index.js';
 import { makeBatchReviewTool } from '../lib/tool.js';
 import { skillProvider, SKILL_NAME } from '../lib/skill.js';
+
+// `apply()` reads the user's settings file under $DSH_HOME. Point it at an empty
+// temp home for the whole file, otherwise a real setting (e.g. a saved
+// allowExternalPersist: false) silently overrides what a test passes in.
+let isolatedHome = null;
+before(async () => {
+  isolatedHome = await mkdtemp(path.join(tmpdir(), 'dsh-batch-review-home-'));
+  process.env.DSH_HOME = isolatedHome;
+});
+after(async () => {
+  delete process.env.DSH_HOME;
+  if (isolatedHome !== null) await rm(isolatedHome, { recursive: true, force: true });
+});
 
 function makeCtx(ask) {
   const registered = { tool: null, provider: null };
@@ -347,7 +360,7 @@ test('the default item cap is 100 and the message tells the caller to split', as
 
   await assert.rejects(
     () => tool.execute({ items }, exec),
-    (error) => error.code === 'TOO_MANY_ITEMS' && /100/.test(error.message) && /拆成多批/.test(error.message),
+    (error) => error.code === 'TOO_MANY_ITEMS' && /100/.test(error.message) && /分组和拆分/.test(error.message),
   );
 });
 

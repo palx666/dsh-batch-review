@@ -41,6 +41,13 @@ test('toQuestion carries multiSelect through to the host schema', () => {
   assert.equal(toQuestion({ id: 2, type: 'confirm' }, 1).multiSelect, false);
 });
 
+test('multi_select is accepted as an alias for multiSelect', () => {
+  // The host's ask_user_question spells it `multi_select`; accept both so a
+  // caller does not lose multi-select by using the other tool's casing.
+  assert.equal(toQuestion({ id: 1, type: 'choice', multi_select: true, options: [{ t: 'A' }] }, 0).multiSelect, true);
+  assert.equal(toQuestion({ id: 2, type: 'choice', multiSelect: false, multi_select: true, options: [{ t: 'A' }] }, 1).multiSelect, true);
+});
+
 test('toQuestion maps bool, scale, choice and text items', () => {
   assert.deepEqual(toQuestion({ type: 'bool', label: '常驻', boolDesc: '接受' }, 0).options,
     [{ label: '是' }, { label: '否' }]);
