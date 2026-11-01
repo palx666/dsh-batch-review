@@ -5,7 +5,7 @@ description: Use whenever the user owes a decision — anything where they must 
 
 # 批阅表格
 
-把「需要用户表态」变成可点界面：**能点鼠标就不打字**。
+把［需要用户表态］变成可点界面：**能点鼠标就不打字**。
 
 > 本技能随 `dsh-batch-review` 插件内置安装，不需要手动复制到 `~/.dsh/skills/`。
 > English version: [SKILL.en.md](SKILL.en.md).
@@ -20,7 +20,7 @@ description: Use whenever the user owes a decision — anything where they must 
 
 ## 通道分工
 
-**前提：凡是要用户表态，都必须给可点界面，不许用文字问「要不要 / 行不行」。** 下面的分工只是为了选更轻的形态，不是「轻的场景可以打字」。
+**前提：凡是要用户表态，都必须给可点界面，不许用文字问［要不要 / 行不行］。** 下面的分工只是为了选更轻的形态，不是［轻的场景可以打字］。
 
 | 判据 | `ask_user_question` | `batch_review` |
 |---|---|---|
@@ -38,13 +38,13 @@ description: Use whenever the user owes a decision — anything where they must 
 1. 需要批准计划（plan-review）      → ask_user_question
 2. 条目 2 条及以上且每条要独立结论  → batch_review
 3. 单条的普通选择/确认              → ask_user_question
-4. 条目很多（十几条以上）、要一屏总览、要留档 → HTML 批阅页（见「回退」）
-5. 以上都不适合                      → 见「都不适合时」
+4. 条目很多（十几条以上）、要一屏总览、要留档 → HTML 批阅页（见［回退］）
+5. 以上都不适合                      → 见［都不适合时］
 ```
 
 两个工具在 Web UI 上是同一套原生卡片（`batch_review` 底层也走 `userQuestions.ask`），差别只在数据契约，不在外观。
 
-**注意卡片的真实形态**：一条 `batch_review` 调用会把全部条目排进同一张卡片，但界面**一次只显示一道题**，靠「上一题 / 下一题」逐页作答。条目越多翻页越久——它是「一次问完、逐页回答」，不是「一屏总览」。
+**注意卡片的真实形态**：一条 `batch_review` 调用会把全部条目排进同一张卡片，但界面**一次只显示一道题**，靠［上一题 / 下一题］逐页作答。条目越多翻页越久——它是［一次问完、逐页回答］，不是［一屏总览］。
 
 **条目 ≥2 时会自动换成一屏面板**：`dsh-batch-review` 装好后，输入框上方会有一个批阅面板；条目 ≥2 且面板在线时，`batch_review` 自动走面板（一屏列全部条目、逐条点结论 + 备注、提交即回传），你**不需要**为此换工具或加参数。面板不在线（用户不在会话页/客户端未加载）时自动退回原生卡片。返回里的 `surface` 字段会写明这次走的是 `panel` 还是 `cards`。
 
@@ -65,7 +65,7 @@ description: Use whenever the user owes a decision — anything where they must 
 ```
 
 - `type`: `confirm`（通过/不通过/待定）、`choice`、`bool`、`text`、`scale`；
-- `multiSelect`（可选）：条目加 `"multiSelect": true` 时同题可选多个；结果 `verdict` 用「、」拼接、`selected[]` 保留数组，报告里同样显示多个；
+- `multiSelect`（可选）：条目加 `"multiSelect": true` 时同题可选多个；结果 `verdict` 用［、］拼接、`selected[]` 保留数组，报告里同样显示多个；
 - `id` 必须唯一：答案按 id 回填，重复的 id 会被工具直接拒绝；
 - `persist`（可选）：把结果另存为 UTF-8 JSON，会话结束后仍可查；返回里 `persisted` 是实际写入的绝对路径，写失败时 `persist_error` 有原因（不影响批阅结果本身）；
 - 工具会挂起等用户点，**不要重复调用**，一次传完所有条目；
@@ -83,10 +83,10 @@ description: Use whenever the user owes a decision — anything where they must 
 
 ## 铁律
 
-1. **先想界面，再想措辞**：凡是需要用户表态，先给可点控件，不得用文字问「要不要 / 行不行」。
+1. **先想界面，再想措辞**：凡是需要用户表态，先给可点控件，不得用文字问［要不要 / 行不行］。
 2. **确认必须点击**：勾选框、按钮、选项。自由文本只用于文字反馈。
 3. **未表态 ≠ 通过**：没点过的一律视为未知，必须追问。
-4. **不替用户表态**：用户没回应就不要往下推进，也不要用「应该没问题」代替确认。
+4. **不替用户表态**：用户没回应就不要往下推进，也不要用［应该没问题］代替确认。
 5. **顺序清单有依赖**：从中间开始时提醒；跳过的步骤要在回执里注明。
 
 ## 回退：HTML 批阅页
@@ -102,7 +102,7 @@ python scripts/build_review.py --data items.json --out review/<slug>.html
 python scripts/collect_server.py
 ```
 
-告诉用户用浏览器打开；提交失败就用「复制结果」把 JSON 贴回。
+告诉用户用浏览器打开；提交失败就用［复制结果］把 JSON 贴回。
 
 > 详细的生命周期警告、回传协议、结果契约、xlsx/csv 导出见
 > [references/html-fallback.md](references/html-fallback.md)，需要排错时再读。

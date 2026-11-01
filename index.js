@@ -40,7 +40,7 @@ export function apply(ctx, rawConfig) {
     timeoutMs: config.panelTimeoutMs,
     maxBodyBytes: config.maxBodyBytes,
     virtualThreshold: config.virtualThreshold,
-    // The Settings → left-nav 「批阅面板」 section reads and writes these through
+    // The Settings → left-nav ［批阅面板］ section reads and writes these through
     // GET/POST /config.
     settings: {
       path: settingsFile,

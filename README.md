@@ -63,9 +63,11 @@ Agent → batch_review({ title, items: [6 条] })
 | Item cap（条目上限） | 100 | 1–500 | 一次批阅最多几条；超过直接驳回并提示拆批，不渲染 |
 | Timeout (ms)（超时） | 15 分钟 | 1 秒–24 小时 | 等用户回答的最长时间；超时按取消返回 |
 
-「高级设置」里另有：`virtualThreshold`（虚拟滚动阈值）、`maxBodyBytes`（请求体上限）、`allowExternalPersist`（允许持久化到工作目录外）、`injectRoutingRule`（是否把路由规则注入 system prompt）。这些**一般不需要改**，调整前请确认影响。
+［高级设置］里另有：`virtualThreshold`（虚拟滚动阈值）、`maxBodyBytes`（请求体上限）、`allowExternalPersist`（允许持久化到工作目录外）、`injectRoutingRule`（是否把路由规则注入 system prompt）。这些**一般不需要改**，调整前请确认影响。
 
 ## 安装
+
+**要求**：DeepSeek Harness `>=0.2.1-rc.3 <0.3.0-0`（即 0.2.x 系列，0.3.0 起不保证兼容）、Node.js `>=20`。零运行时依赖、无构建步骤（纯 ESM）。
 
 ```sh
 # 直接从仓库装
@@ -76,8 +78,6 @@ dsh plugin --profile <profile> add https://github.com/palx666/dsh-batch-review/a
 ```
 
 重启 DSH（`dsh web` 或桌面端）让插件加载。验证：Agent 的工具列表里应出现 `batch_review`。
-
-要求：DeepSeek Harness `>=0.2.1-rc.3 <0.3.0-0`、Node.js `>=20`。零运行时依赖、无构建步骤（纯 ESM）。
 
 ## 用法
 
@@ -125,7 +125,7 @@ dsh plugin --profile <profile> add https://github.com/palx666/dsh-batch-review/a
 三个通道各管一段：**面板 → HTML 批阅页 → Excel 表**，条数越多越往后。
 
 - 面板按 `group`（缺省用 `header`）把**连续**条目分组，每个组头带［全通过 / 全待定］批量按钮。100 条只要 Agent 先分类，是可操作的；平铺的 100 条不是。
-- **50 条及以上**时面板顶部提示改用 Excel 表。`build_review.py --format xlsx` 生成的表自带「状态」列下拉（通过 / 不通过 / 待定 / 跳过），适合几十到上千条——逐条点选在 HTML 页里要点上千次，Excel 里可以下拉 + 拖动批量填。
+- **50 条及以上**时面板顶部提示改用 Excel 表。`build_review.py --format xlsx` 生成的表自带［状态］列下拉（通过 / 不通过 / 待定 / 跳过），适合几十到上千条——逐条点选在 HTML 页里要点上千次，Excel 里可以下拉 + 拖动批量填。
 - xlsx 需要 `openpyxl`；没装时脚本会提示并**自动降级为 csv**（同样能填，只是没有下拉）。
 - `group` 是可选自由文本，分几类由 Agent 决定。
 
@@ -164,7 +164,7 @@ dsh plugin --profile <profile> add https://github.com/palx666/dsh-batch-review/a
 - **条数上限（默认 100）**：超过即**驳回**并提示调用方拆成多批，不渲染。要调上限见[设置说明](#设置说明)。
 - **大批次跳过屏外绘制**：超过 `virtualThreshold` 条时面板给行加 `content-visibility: auto`，浏览器跳过视口外的布局与绘制，但每行保留真实高度——没有固定行高，不会裁切内容。默认值（`maxItems: 100`、`virtualThreshold: 500`）下这条路径不触发；要验证就在［设置 → 高级设置］里调低 `virtualThreshold`。
 - **中文只是兜底**：既无面板上报、也无显式 `lang` 时，选项标签（`confirm`：［通过 / 不通过 / 待定］，`bool`：［是 / 否］）与 `report_text` 回退中文；其余情况跟随界面语言或 `lang` 参数。
-- **样式只用 DSH 主题变量**：原生卡片的外观完全由 DSH 提供；面板的 CSS 全部使用 `--dsw-*` 主题变量（无硬编码颜色），跟随 DSH 亮色/暗色切换。
+- **样式只用 DSH 主题变量**：原生卡片的外观完全由 DSH 提供；面板的 CSS 全部使用 `--dsw-*` 主题变量（无硬编码颜色），跟随 DSH 亮色/暗色切换。已在 orca-maid、maid-atelier、orca-link、deep-whale-manager、DeepSeek Cloud Paper 皮肤下实测可读；maid-whale 未使用。
 
 ## 开发
 
