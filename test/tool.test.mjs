@@ -91,6 +91,32 @@ test('choiceOf tolerates null, undefined and bare-string options', () => {
   assert.deepEqual(toQuestion({ type: 'choice', options: [] }, 0).options, []);
 });
 
+test('choice option notes prefer d and fall back to v', () => {
+  const withD = toQuestion({ type: 'choice', label: 'x', options: [
+    { v: 'A', t: '直连', d: '在本机直接连 18080' },
+  ] }, 0);
+  assert.deepEqual(withD.options, [{ label: '直连', description: '在本机直接连 18080' }],
+    'an explicit d wins over the stored value');
+
+  assert.deepEqual(
+    toQuestion({ type: 'choice', label: 'x', options: [{ v: 'B', t: '转发' }] }, 0).options,
+    [{ label: '转发', description: 'B' }],
+    'v still supplies the note when d is absent (back-compat)',
+  );
+
+  assert.deepEqual(
+    toQuestion({ type: 'choice', label: 'x', options: [{ t: '无说明' }] }, 0).options,
+    [{ label: '无说明' }],
+    'no v and no d means no note at all',
+  );
+
+  assert.deepEqual(
+    toQuestion({ type: 'choice', label: 'x', options: [{ v: 'C', t: '空说明', d: '   ' }] }, 0).options,
+    [{ label: '空说明', description: 'C' }],
+    'a blank d is ignored rather than rendered as an empty line',
+  );
+});
+
 test('a scale range above the cap is rejected with the item index', () => {
   assert.throws(
     () => normalizeItems([{ id: 1, type: 'scale', min: 0, max: 200 }]),
