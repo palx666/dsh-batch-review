@@ -41,6 +41,26 @@ MAX_BODY = 1_000_000
 
 
 class Handler(BaseHTTPRequestHandler):
+    def _origin_allowed(self):
+        """只接受批阅页（file:// 打开）的提交。
+
+        浏览器对 file:// 页面发出的跨源 POST，Origin 通常是字面 "null"，
+        部分浏览器干脆不发；因此放行「缺失 / null / file:// 开头」三种，
+        其余（任意 http(s) 站点）一律视为跨站提交，拒绝。
+
+        同源 http://127.0.0.1:PORT 不会出现在正常流程里：本服务只响应
+        /health 与 /submit，不提供静态页面，批阅页始终是从磁盘 file:// 打开的。
+        """
+        for name in ("Origin", "Referer"):
+            value = self.headers.get(name)
+            if value is None:
+                continue
+            value = value.strip()
+            if value == "" or value == "null" or value.startswith("file://"):
+                continue
+            return False
+        return True
+
     def _send_headers(self, code=200, content_type="application/json"):
         self.send_response(code)
         self.send_header("Content-Type", content_type)
@@ -65,6 +85,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json(404, {"ok": False})
 
     def do_POST(self):
+        if not self._origin_allowed():
+            self._json(403, {"ok": False, "error": "forbidden origin"})
+            return
         if self.path.split("?")[0] != "/submit":
             self._json(404, {"ok": False, "error": "not found"})
             return

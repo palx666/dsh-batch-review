@@ -45,10 +45,40 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, "..", "assets", "review.html")
 
 
+def js_json(obj):
+    """序列化成能安全内联进 <script> 的 JS 字面量。
+
+    - ensure_ascii=False 保留中文；
+    - U+2028 / U+2029 在 JS 里是行终止符，原样输出会截断字符串（甚至语法错误），
+      统一转成 \\u2028 / \\u2029；
+    - "</" 换成 "<\\/"：否则 label/title/option 文本里的 </script> 会提前闭合
+      <script> 标签（JSON 的 \\/ 与 / 等值，解析结果不变）。
+    """
+    text = json.dumps(obj, ensure_ascii=False)
+    return (text.replace("\u2028", "\\u2028")
+                .replace("\u2029", "\\u2029")
+                .replace("</", "<\\/"))
+
+
+def validate_items(data):
+    """id 契约：必须是真正的整数（不含 bool），否则报错退出并指明是哪一条。"""
+    for idx, it in enumerate(data["items"], 1):
+        if not isinstance(it, dict):
+            raise SystemExit("items[%d] 不是对象（%s）" % (idx, type(it).__name__))
+        if "id" not in it:
+            raise SystemExit("items[%d] 缺少 id 字段" % idx)
+        item_id = it["id"]
+        if isinstance(item_id, bool) or not isinstance(item_id, int):
+            raise SystemExit(
+                "items[%d] 的 id 必须是整数（收到 %s: %r）"
+                % (idx, type(item_id).__name__, item_id)
+            )
+
+
 def render_html(data):
     with open(TEMPLATE, encoding="utf-8") as f:
         tpl = f.read()
-    payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+    payload = js_json(data)
     return tpl.replace("/*__REVIEW_DATA__*/", payload)
 
 
@@ -103,6 +133,7 @@ def main():
         data = json.load(f)
     if not isinstance(data.get("items"), list) or not data["items"]:
         raise SystemExit("items 不能为空")
+    validate_items(data)
     data.setdefault("id", "review")
     data.setdefault("mode", "independent")
 
@@ -115,7 +146,7 @@ def main():
     else:
         out = args.out or os.path.join("review", slug + ".html")
         html = render_html(data)
-        body = html.replace("/*__REVIEW_PATH__*/", json.dumps(os.path.abspath(out), ensure_ascii=False).replace("</", "<\\/"))
+        body = html.replace("/*__REVIEW_PATH__*/", js_json(os.path.abspath(out)))
         final = write_text(body, out, slug, "html")
 
     print("OUT:", final)

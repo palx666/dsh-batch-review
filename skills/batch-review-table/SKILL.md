@@ -23,7 +23,7 @@ description: Use whenever the user owes a decision — anything where they must 
 
 | 判据 | `ask_user_question` | `batch_review` |
 |---|---|---|
-| 条数 | 1–2 条 | 3 条以上 |
+| 条数 | 1 条 | 2 条及以上 |
 | 条目关系 | 选一个/几个（并列或互斥选项） | 每条要**独立结论** |
 | 结论形态 | `selected[]` | 通过 / 不通过 / 待定 + 备注 |
 | 多选 | ✅ 支持 | ✅ 支持（条目设 `multiSelect: true`） |
@@ -35,8 +35,8 @@ description: Use whenever the user owes a decision — anything where they must 
 
 ```
 1. 需要批准计划（plan-review）      → ask_user_question
-2. 条目 3 条以上且每条要独立结论    → batch_review
-3. 条目 1–2 条的普通选择/确认      → ask_user_question
+2. 条目 2 条及以上且每条要独立结论  → batch_review
+3. 单条的普通选择/确认              → ask_user_question
 4. 条目很多（十几条以上）、要一屏总览、要留档 → HTML 批阅页（见「回退」）
 5. 以上都不适合                      → 见「都不适合时」
 ```

@@ -397,8 +397,8 @@ function renderSeqHint(){
   const skipped = skippedBefore(state.focus);
   if(!skipped.length){ el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = '⚠ 当前停在第 ' + state.focus + ' 步，前面第 ' + skipped[0].id + '–' + skipped[skipped.length - 1].id +
-    ' 条还没表态。<button class="btn" type="button" data-goto="' + skipped[0].id + '">回到第 ' + skipped[0].id + ' 条</button>';
+  el.innerHTML = '⚠ 当前停在第 ' + esc(String(state.focus)) + ' 步，前面第 ' + esc(String(skipped[0].id)) + '–' + esc(String(skipped[skipped.length - 1].id)) +
+    ' 条还没表态。<button class="btn" type="button" data-goto="' + esc(String(skipped[0].id)) + '">回到第 ' + esc(String(skipped[0].id)) + ' 条</button>';
 }
 
 function controlHTML(it, s){
@@ -410,14 +410,14 @@ function controlHTML(it, s){
         '<button class="v ' + (v === "fail" ? "on-fail" : "") + '" data-v="fail" type="button">✗ 不通过</button>' +
         '<button class="v ' + (v === "skip" ? "on-skip" : "") + '" data-v="skip" type="button">⏭ 待定</button>' +
       '</div>' +
-      (s.blocked ? '<button class="unblock" data-unblock="' + it.id + '" type="button">取消阻塞</button>' : '') +
+      (s.blocked ? '<button class="unblock" data-unblock="' + esc(String(it.id)) + '" type="button">取消阻塞</button>' : '') +
     '</div>';
   }
   if(it.type === "choice"){
     return '<div class="opts">' + (it.options || []).map(function(o){
       const on = (s.v === o.v);
       return '<label class="opt' + (on ? " on" : "") + '">' +
-        '<input type="radio" name="q' + it.id + '" value="' + esc(o.v) + '"' + (on ? " checked" : "") + '>' +
+        '<input type="radio" name="q' + esc(String(it.id)) + '" value="' + esc(o.v) + '"' + (on ? " checked" : "") + '>' +
         '<span class="tag">' + esc(o.v) + '</span>' +
         '<span class="txt">' + esc(o.t) + '</span>' +
         (o.rec ? '<span class="rec">推荐</span>' : '') +
@@ -426,7 +426,7 @@ function controlHTML(it, s){
   }
   if(it.type === "bool"){
     return '<label class="opt' + (s.v === true ? " on" : "") + '" style="margin-top:12px">' +
-      '<input type="checkbox" data-bool="' + it.id + '"' + (s.v === true ? " checked" : "") + '>' +
+      '<input type="checkbox" data-bool="' + esc(String(it.id)) + '"' + (s.v === true ? " checked" : "") + '>' +
       '<span class="txt">' + esc(it.boolLabel || "是") + '</span>' +
     '</label>';
   }
@@ -452,9 +452,9 @@ function itemHTML(it){
   const mono = /[@\\/]/.test(subOf(it)) ? " mono" : "";
   const noteValue = it.type === "text" ? (typeof s.v === "string" ? s.v : "") : (s.n || "");
   const notePlaceholder = it.type === "text" ? "写下你的回复…" : (s.v === "fail" ? "不通过：实际看到了什么？" : "实际结果 / 备注（可选）");
-  return '<article class="' + cls + '" data-id="' + it.id + '">' +
+  return '<article class="' + cls + '" data-id="' + esc(String(it.id)) + '">' +
     '<div class="head">' +
-      '<span class="no">' + it.id + '</span>' +
+      '<span class="no">' + esc(String(it.id)) + '</span>' +
       '<span class="op">' + esc(titleOf(it)) + '</span>' +
       '<span class="expect">' + esc(subOf(it)) + '</span>' +
       '<span class="badge ' + st.key + '">' + st.icon + ' ' + st.text + '</span>' +
@@ -463,7 +463,7 @@ function itemHTML(it){
       (it.op ? '<div class="kv"><span>操作</span><b>' + esc(it.op) + '</b></div>' : '') +
       (it.expect ? '<div class="kv"><span>预期</span><b class="' + mono + '">' + esc(it.expect) + '</b></div>' : '') +
       controlHTML(it, s) +
-      '<textarea class="note" data-note="' + it.id + '" rows="2" placeholder="' + esc(notePlaceholder) + '">' + esc(noteValue) + '</textarea>' +
+      '<textarea class="note" data-note="' + esc(String(it.id)) + '" rows="2" placeholder="' + esc(notePlaceholder) + '">' + esc(noteValue) + '</textarea>' +
     '</div>' +
   '</article>';
 }
