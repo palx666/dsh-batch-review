@@ -2,7 +2,7 @@
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 用的「逐条批阅」工具：复用宿主**原生提问卡片**，一次调用收齐一批结论。
 
-agent 调一次 `batch_review`，把清单交给 Web UI 变成原生卡片；用户逐条表态后，工具返回一份结构化结果：每条一个结论 + 备注，外加一段可直接贴进回复的 `report_text`。**零新增 UI、无浏览器页、无本地服务**，而且「没表态」永远不会被当成「通过」。
+agent 调一次 `batch_review`，把清单交给 Web UI——单条用原生提问卡片，2 条及以上走输入框上方的一屏面板；用户逐条表态后，工具返回一份结构化结果：每条一个结论 + 备注，外加一段可直接贴进回复的 `report_text`。面板由宿主自带的 web server 经 `/api/batch-review/*` 提供，**无需另开应用、不占额外端口**，而且「没表态」永远不会被当成「通过」。
 
 ```text
 agent → batch_review({ title, items: [6 条] })
@@ -21,7 +21,7 @@ agent 要对 6 条验收项逐一要结论时，现在只有两个坏选择：
 
 ## 它做什么
 
-- **`batch_review` 工具**：agent 一次传 3 条以上；每条映射为宿主原生卡片上的一道题；返回 `items[].{id,title,type,verdict,note,filled}` + `summary` + `report_text`。
+- **`batch_review` 工具**：agent 一次传完整批条目；每条映射为宿主原生卡片上的一道题；返回 `items[].{id,title,type,verdict,note,filled}` + `summary` + `report_text`。
 - **未填 = 未通过（fail-closed）**：跳过或留空的条目返回 `filled: false`，报告里单列「未填：…（没填不代表通过，需要单独追问）」。会话中断则返回 `cancelled: true`、`items: []`——不会静默通过。
 - **五种条目类型**：`confirm`（通过 / 不通过 / 待定）、`bool`、`choice`、`text`、`scale`。
 - **按需多选**：条目设 `multiSelect: true` 即可多选；结果里 `verdict` 用「、」拼接所有选项，同时新增 `selected[]` 数组保留完整选择。
@@ -55,7 +55,7 @@ dsh plugin --profile <profile> add dsh-batch-review
 
 重启宿主（`dsh web` 或桌面端）让插件加载。验证：agent 的工具列表里应出现 `batch_review`。
 
-要求：DeepSeek Harness `>=0.2.1-rc.3 <0.3.0-0`。零运行时依赖、无构建步骤（纯 ESM）。
+要求：DeepSeek Harness `>=0.2.1-rc.3 <0.3.0-0`、Node.js `>=20`。零运行时依赖、无构建步骤（纯 ESM）。
 
 ## 用法
 
@@ -129,9 +129,9 @@ dsh plugin --profile <profile> add dsh-batch-review
 - **一次只显示一道题——阈值以下**：1 条走原生卡片，逐页作答；从 2 条起，面板在线时自动换成**一屏面板**，面板不在线时仍退回卡片。
 - **面板依赖客户端半区**：面板挂在 `conversation.input.dock`，只在挂载时轮询。宿主没有 `webServer`、客户端没加载 bundle、或用户不在会话页，都等于「面板不在线」，工具会降级到原生卡片而不是一直等。
 - **只有 root agent 能调**：`userQuestions.ask()` 只接受 live runtime root，子代理调用会拿到 `DELEGATED_CALLER`。这是宿主边界，不是插件缺陷。
-- **无持久化**：不落盘；会话中途结束就是 `cancelled: true`，需要重新问一遍。
-- **条数上限（默认 100）**：超过即**驳回**并提示调用方拆成多批，不进入渲染。所有阈值都在 `cordis.patch.yml` 的 `config` 里改：`maxItems`（驳回上限）、`panelThreshold`（几条起用面板）、`virtualThreshold`（几条起用虚拟滚动）、`panelTimeoutMs`（面板等待超时）、`maxBodyBytes`（面板请求体上限）。
-- **超大面板走虚拟滚动**：超过 `virtualThreshold` 条时只渲染可视窗口（固定行高 100px / 组头 30px），调高 `maxItems` 后上万条仍可滚动浏览。
+- **持久化需显式开启**：默认不落盘；传 `persist: "<路径>"` 才会把结论写成 UTF-8 JSON（返回的 `persisted` 是实际写入的绝对路径）。`persist` 默认只能写宿主进程 cwd 子树，写到别处需在配置里设 `allowExternalPersist: true`。不传的话，会话中途结束就是 `cancelled: true`，需要重新问一遍。
+- **条数上限（默认 100）**：超过即**驳回**并提示调用方拆成多批，不进入渲染。所有阈值都在 `cordis.patch.yml` 的 `config` 里改：`maxItems`（驳回上限）、`panelThreshold`（几条起用面板）、`virtualThreshold`（几条起用虚拟滚动）、`panelTimeoutMs`（面板等待超时）、`maxBodyBytes`（面板请求体上限）、`allowExternalPersist`（是否允许 `persist` 写到 cwd 之外）。
+- **默认配置下虚拟滚动不可达**：超过 `virtualThreshold` 条时面板只渲染可视窗口（固定行高 100px / 组头 30px）。默认 `maxItems: 100`、`virtualThreshold: 500`，条目在到达虚拟滚动前就被驳回；只有把 `maxItems` 调到 `virtualThreshold` 以上，这条路径才会生效。
 - **默认中文选项**：`confirm` 渲染「通过 / 不通过 / 待定」，`bool` 渲染「是 / 否」；要换语言改 `lib/tool.js` 顶部常量。
 - **样式只用宿主主题变量**：原生卡片的外观完全由 DSH 提供；面板的 CSS 全部使用 `--dsw-*` 主题变量（无硬编码颜色），跟随宿主亮色/暗色切换。
 

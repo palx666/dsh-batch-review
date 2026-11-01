@@ -1,8 +1,9 @@
 {
   "name": "dsh-batch-review",
   "version": "1.0.0",
-  "description": "Native per-item review cards for DeepSeek Harness: one batch_review tool call, structured verdicts back — no added UI, no browser page, no local server.",
+  "description": "Native per-item review cards for DeepSeek Harness: one batch_review tool call, structured verdicts back. Ships a one-screen panel in the Web UI served by the host's own /api/batch-review routes — no separate app to open, no extra port.",
   "type": "module",
+  "sideEffects": ["lib/client.js"],
   "license": "MIT",
   "author": "palx666",
   "repository": {
@@ -14,6 +15,7 @@
     "url": "https://github.com/palx666/dsh-batch-review/issues"
   },
   "engines": {
+    "node": ">=20",
     "dsh": ">=0.2.1-rc.3 <0.3.0-0"
   },
   "keywords": [
@@ -46,6 +48,7 @@
     "icon.svg",
     "README.md",
     "README.zh.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "dsh": {

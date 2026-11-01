@@ -76,6 +76,30 @@ test('normalizeItems rejects empty, non-object and duplicate ids', () => {
   assert.throws(() => normalizeItems([{ id: 1 }, { id: '1' }]), /不能重复/);
 });
 
+test('normalizeItems rejects ids that cannot round-trip safely', () => {
+  assert.throws(() => normalizeItems([{ id: '' }]), /items\[0\].*空字符串/);
+  assert.throws(() => normalizeItems([{ id: '   ' }]), /空字符串/);
+  assert.throws(() => normalizeItems([{ id: true }]), /必须是字符串或有限数字/);
+  assert.throws(() => normalizeItems([{ id: {} }]), /必须是字符串或有限数字/);
+  assert.throws(() => normalizeItems([{ id: Number.NaN }]), /有限数字/);
+  assert.deepEqual(normalizeItems([{ id: 0 }, { id: ' a ' }]), [{ id: 0 }, { id: ' a ' }]);
+});
+
+test('choiceOf tolerates null, undefined and bare-string options', () => {
+  const question = toQuestion({ type: 'choice', label: 'x', options: [null, 'B', undefined] }, 0);
+  assert.deepEqual(question.options, [{ label: 'B' }]);
+  assert.deepEqual(toQuestion({ type: 'choice', options: [] }, 0).options, []);
+});
+
+test('a scale range above the cap is rejected with the item index', () => {
+  assert.throws(
+    () => normalizeItems([{ id: 1, type: 'scale', min: 0, max: 200 }]),
+    (error) => error.code === 'BAD_SCALE' && /items\[0\]/.test(error.message) && /100/.test(error.message),
+  );
+  assert.throws(() => toQuestion({ type: 'scale', min: 1, max: 200 }, 3), /items\[3\]/);
+  assert.equal(toQuestion({ type: 'scale', min: 0, max: 99 }, 0).options.length, 100, 'the cap itself is allowed');
+});
+
 test('buildRows folds answers and marks blanks as unfilled', () => {
   const items = [
     { id: 1, type: 'confirm', op: 'a' },

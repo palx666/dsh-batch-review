@@ -18,7 +18,20 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Unit tests
-        run: node --test
+        shell: bash
+        # The report is piped through tee, so pipefail is required: without it the
+        # pipeline would exit with tee's status and a red `node --test` would pass.
+        run: |
+          set -o pipefail
+          node --test --test-reporter=tap 2>&1 | tee /tmp/node-test.tap
+          # The TAP summary is asserted explicitly: a summary line that moves or
+          # changes shape must fail the job instead of passing on a green pipeline.
+          grep -Eq '^# pass [1-9][0-9]*$' /tmp/node-test.tap \
+            || { echo "::error::node --test reported no passing tests"; exit 1; }
+          grep -Eq '^# fail 0$' /tmp/node-test.tap \
+            || { echo "::error::node --test reported a non-zero fail count"; exit 1; }
+          grep -Eq '^# cancelled 0$' /tmp/node-test.tap \
+            || { echo "::error::node --test reported a non-zero cancelled count"; exit 1; }
 
   python-fallback:
     runs-on: ubuntu-latest
@@ -36,5 +49,45 @@ jobs:
             exit 1
           fi
           grep -q '验收：文件复制' /tmp/review.html
+      - name: Reviewer text cannot close the page's inline <script>
+        shell: bash
+        # Items are embedded into the page's inline <script> as a JSON literal, so
+        # reviewer-supplied text such as </script><script>alert(1)</script> must be
+        # escaped. A raw "</script>" in that block would end the script early and run
+        # the injected markup, so the checks below fail closed on a regression.
+        run: |
+          set -o pipefail
+          cat > /tmp/inject-items.json <<'JSON'
+          {
+            "id": "inject",
+            "title": "P0 </script><script>alert('brx')</script> tail",
+            "items": [
+              {
+                "id": 1,
+                "type": "confirm",
+                "op": "P0 </script><script>alert('brx')</script> tail",
+                "expect": "same text"
+              }
+            ]
+          }
+          JSON
+          python skills/batch-review-table/scripts/build_review.py --data /tmp/inject-items.json --out /tmp/inject.html
+          if grep -Fq '</script><script>alert' /tmp/inject.html; then
+            echo "::error::reviewer text closed the inline <script>: raw </script> reached the page"
+            exit 1
+          fi
+          # The payload must really reach the page, escaped — otherwise the rest of
+          # this step would pass vacuously.
+          grep -Fq '<\/script><script>alert' /tmp/inject.html \
+            || { echo "::error::the reviewer payload was not embedded in the page"; exit 1; }
+          # The page must keep exactly the script close tags its template has; any
+          # extra one came from the payload.
+          got=$(grep -o -F '</script>' /tmp/inject.html | wc -l | tr -d ' ')
+          want=$(grep -o -F '</script>' skills/batch-review-table/assets/review.html | wc -l | tr -d ' ')
+          if [ "$got" != "$want" ]; then
+            echo "::error::the payload added </script> tags (page: $got, template: $want)"
+            exit 1
+          fi
+          echo "OK: $got script tag close(s), reviewer payload stayed escaped"
       - name: Compiled collector exists
         run: python -m py_compile skills/batch-review-table/scripts/collect_server.py

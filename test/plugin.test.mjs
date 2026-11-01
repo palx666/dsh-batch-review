@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -44,7 +44,7 @@ test('apply registers the batch_review tool and the bundled skill provider', () 
   assert.equal('mode' in ctx.registered.tool.parameters.properties, false);
 
   assert.equal(ctx.registered.provider.name, 'batch-review');
-  assert.equal(ctx.registered.provider.list.length, 0);
+  assert.equal(typeof ctx.registered.provider.list, 'function', 'the provider exposes an async list()');
 });
 
 test('execute folds the host answer into a structured result', async () => {
@@ -119,35 +119,80 @@ test('execute rejects an empty or duplicate item list before asking', async () =
 });
 
 test('execute persists the result when persist is set', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'batch-review-'));
+  const dir = await mkdtemp(path.join(process.cwd(), '.tmp-persist-'));
   const target = path.join(dir, 'nested', 'result.json');
-  const ctx = makeCtx(async () => ({ answers: [{ id: '1', selected: ['通过'] }] }));
-  apply(ctx);
+  try {
+    const ctx = makeCtx(async () => ({ answers: [{ id: '1', selected: ['通过'] }] }));
+    apply(ctx);
 
-  const result = await ctx.registered.tool.execute(
-    { title: 'persist', persist: target, items: [{ id: 1, type: 'confirm' }] },
-    exec,
-  );
+    const result = await ctx.registered.tool.execute(
+      { title: 'persist', persist: target, items: [{ id: 1, type: 'confirm' }] },
+      exec,
+    );
 
-  assert.equal(result.persisted, target);
-  const saved = JSON.parse(await readFile(target, 'utf8'));
-  assert.equal(saved.summary.total, 1);
-  assert.equal(saved.items[0].verdict, '通过');
-  assert.ok(saved.answered_at, 'persisted payload records when it was answered');
+    assert.equal(result.persisted, target);
+    const saved = JSON.parse(await readFile(target, 'utf8'));
+    assert.equal(saved.summary.total, 1);
+    assert.equal(saved.items[0].verdict, '通过');
+    assert.ok(saved.answered_at, 'persisted payload records when it was answered');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
-test('a failed persist never loses the review', async () => {
+test('persist outside the cwd subtree is refused by default', async () => {
+  const target = path.join(tmpdir(), 'batch-review-outside-' + process.pid + '.json');
   const ctx = makeCtx(async () => ({ answers: [{ id: '1', selected: ['通过'] }] }));
   apply(ctx);
 
   const result = await ctx.registered.tool.execute(
-    { persist: tmpdir(), items: [{ id: 1, type: 'confirm' }] },
+    { persist: target, items: [{ id: 1, type: 'confirm' }] },
     exec,
   );
 
   assert.equal(result.persisted, null);
-  assert.ok(result.persist_error, 'write failure is reported');
-  assert.equal(result.summary.filled, 1, 'the verdict itself is still returned');
+  assert.match(result.persist_error, /越界/);
+  assert.equal(result.summary.filled, 1, 'the verdict is still returned');
+  await assert.rejects(() => readFile(target, 'utf8'), 'nothing may be written outside the cwd');
+});
+
+test('allowExternalPersist lifts the cwd-only rule', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'batch-review-ext-'));
+  const target = path.join(dir, 'result.json');
+  try {
+    const ctx = makeCtx(async () => ({ answers: [{ id: '1', selected: ['通过'] }] }));
+    apply(ctx, { allowExternalPersist: true });
+
+    const result = await ctx.registered.tool.execute(
+      { persist: target, items: [{ id: 1, type: 'confirm' }] },
+      exec,
+    );
+
+    assert.equal(result.persisted, target);
+    assert.equal(JSON.parse(await readFile(target, 'utf8')).summary.total, 1);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('a failed persist never loses the review', async () => {
+  const dir = await mkdtemp(path.join(process.cwd(), '.tmp-dirent-'));
+  try {
+    const ctx = makeCtx(async () => ({ answers: [{ id: '1', selected: ['通过'] }] }));
+    apply(ctx);
+
+    // A directory is a write failure that is not a policy refusal.
+    const result = await ctx.registered.tool.execute(
+      { persist: dir, items: [{ id: 1, type: 'confirm' }] },
+      exec,
+    );
+
+    assert.equal(result.persisted, null);
+    assert.ok(result.persist_error, 'write failure is reported');
+    assert.equal(result.summary.filled, 1, 'the verdict itself is still returned');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test('a large review uses the mounted panel instead of the native card', async () => {
@@ -215,6 +260,54 @@ test('a panel cancel becomes a cancelled result, not an exception', async () => 
   assert.equal(result.cancelled, true);
   assert.equal(result.surface, 'panel');
   assert.equal(result.cancel_reason, 'CANCELLED');
+});
+
+test('a BUSY panel falls back to the native card instead of failing the call', async () => {
+  const panel = {
+    available: () => true,
+    begin: () => {
+      const error = new Error('busy');
+      error.code = 'BUSY';
+      throw error;
+    },
+  };
+  let asked = 0;
+  const ctx = makeCtx(async () => {
+    asked += 1;
+    return { answers: [{ id: '1', selected: ['通过'] }] };
+  });
+  const tool = makeBatchReviewTool(ctx, { panel, panelThreshold: 2 });
+  const items = [{ id: 1, type: 'confirm' }, { id: 2, type: 'confirm' }];
+
+  const result = await tool.execute({ items }, exec);
+
+  assert.equal(asked, 1, 'the native card took over');
+  assert.equal(result.surface, 'cards');
+  assert.equal(result.summary.filled, 1);
+});
+
+test('the panel receives the tool call abort signal', async () => {
+  let received = 'unset';
+  const panel = {
+    available: () => true,
+    begin: (request) => {
+      received = request.signal;
+      return { id: 'r1', promise: Promise.resolve({ answers: [] }) };
+    },
+  };
+  const ctx = makeCtx(async () => {
+    throw new Error('native card must not be used');
+  });
+  const tool = makeBatchReviewTool(ctx, { panel, panelThreshold: 2 });
+  const controller = new AbortController();
+
+  const result = await tool.execute(
+    { items: [{ id: 1 }, { id: 2 }] },
+    { agent: {}, signal: controller.signal },
+  );
+
+  assert.equal(result.surface, 'panel');
+  assert.equal(received, controller.signal);
 });
 
 test('the skill provider lists one candidate and returns Markdown without frontmatter', async () => {

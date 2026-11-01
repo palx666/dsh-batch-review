@@ -2,7 +2,7 @@
 
 Per-item review cards for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), built on the host's own question UI.
 
-One `batch_review` tool call hands the agent's checklist to the Web UI as native question cards and returns one structured result: a verdict and a note per item, plus a ready-to-read report. No added UI, no browser page, no local server — and a blank item never counts as approved.
+One `batch_review` tool call hands the agent's checklist to the Web UI — native question cards for a single item, a one-screen panel in the input dock from 2 items up — and returns one structured result: a verdict and a note per item, plus a ready-to-read report. The panel is served by the host's own web server under `/api/batch-review/*`, so there is no separate app to open and no extra port — and a blank item never counts as approved.
 
 ```text
 agent → batch_review({ title, items: [6 items] })
@@ -21,7 +21,7 @@ An agent that needs a verdict on six checklist items has two bad options today:
 
 ## What it does
 
-- **`batch_review` tool.** The agent sends 3+ items in one call. Each item becomes one `AskUserQuestionItem` on the host's native card; the answers come back as `items[].{id,title,type,verdict,note,filled}` plus `summary` and a `report_text` the model can paste into its reply.
+- **`batch_review` tool.** The agent sends the whole batch in one call. Each item becomes one `AskUserQuestionItem` on the host's native card; the answers come back as `items[].{id,title,type,verdict,note,filled}` plus `summary` and a `report_text` the model can paste into its reply.
 - **Fail-closed blanks.** An item the user skipped or left blank returns `filled: false`. The report lists it under "未填" with the explicit note that it is not a pass. A cancelled session returns `cancelled: true` and no items at all — never a silent pass.
 - **Five item types.** `confirm` (通过 / 不通过 / 待定), `bool`, `choice`, `text`, `scale`.
 - **Multi-select on request.** Set `multiSelect: true` on any item that accepts more than one label; the answer keeps every label in `verdict` (joined with `、`) and in the new `selected[]` array.
@@ -55,7 +55,7 @@ dsh plugin --profile <profile> add dsh-batch-review
 
 Restart the host (`dsh web` / the desktop app) so the plugin loads. To verify, check that the agent's tool list contains `batch_review`.
 
-Requirements: DeepSeek Harness `>=0.2.1-rc.3 <0.3.0-0`. No runtime dependencies, no build step — plain ESM.
+Requirements: DeepSeek Harness `>=0.2.1-rc.3 <0.3.0-0`, Node.js `>=20`. No runtime dependencies, no build step — plain ESM.
 
 ## Usage
 
@@ -129,9 +129,9 @@ If you would rather own that rule yourself, add your own `AGENTS.md` entry — t
 - **One card, one question at a time — below the threshold.** A single item still uses the native card. From 2 items up, the one-screen panel takes over when it is mounted; if it is not, the paged card is still the fallback.
 - **The panel needs its client half.** It lives in `conversation.input.dock` and only polls while mounted. A host without `webServer`, a client build that does not load the bundle, or a user on another page all mean “no panel”, and the tool degrades to the native card rather than waiting forever.
 - **Root agent only.** `userQuestions.ask()` accepts only the live runtime root, so a subagent cannot call `batch_review`; the call fails with `DELEGATED_CALLER`. This is a host boundary, not a plugin bug.
-- **No persistence.** Nothing is written to disk; if the session ends mid-review the result is `cancelled: true` and the batch must be asked again.
-- **Item cap (100 by default).** A review above it is **rejected** with a message telling the caller to split the batch; nothing renders. Every tunable lives in `cordis.patch.yml` under `config`: `maxItems` (rejection cap), `panelThreshold` (items needed to use the panel), `virtualThreshold` (rows above which the panel virtualizes), `panelTimeoutMs` (panel wait), `maxBodyBytes` (panel request body cap).
-- **Very large panels virtualize.** Above `virtualThreshold` rows the panel renders only the visible window (fixed 100px rows / 30px group headers), so raising `maxItems` still leaves tens of thousands of items scrollable.
+- **Persistence is opt-in.** Nothing is written to disk by default; pass `persist: "<path>"` and the verdicts are saved as UTF-8 JSON (the returned `persisted` field is the absolute path actually written). `persist` is confined to the host process cwd unless the profile sets `allowExternalPersist: true`. Without `persist`, a session that ends mid-review returns `cancelled: true` and the batch must be asked again.
+- **Item cap (100 by default).** A review above it is **rejected** with a message telling the caller to split the batch; nothing renders. Every tunable lives in `cordis.patch.yml` under `config`: `maxItems` (rejection cap), `panelThreshold` (items needed to use the panel), `virtualThreshold` (rows above which the panel virtualizes), `panelTimeoutMs` (panel wait), `maxBodyBytes` (panel request body cap), `allowExternalPersist` (lift the cwd-only rule on `persist`).
+- **Virtual scrolling is unreachable with the defaults.** Above `virtualThreshold` rows the panel renders only the visible window (fixed 100px rows / 30px group headers). The defaults are `maxItems: 100` and `virtualThreshold: 500`, so a review is rejected before it is big enough to virtualize; the path only runs if `maxItems` is raised above `virtualThreshold`.
 - **Chinese option labels by default.** `confirm` renders 通过 / 不通过 / 待定 and `bool` renders 是 / 否. Edit the constants in `lib/tool.js` if you need another language.
 - **Theme tokens only.** Native cards are styled entirely by DSH; the panel's own CSS uses `--dsw-*` theme tokens exclusively (no literal colors), so it follows the host's light/dark switch.
 

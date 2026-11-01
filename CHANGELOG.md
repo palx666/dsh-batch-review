@@ -48,6 +48,15 @@ First public release, merging the former `batch-review-tool` plugin and the
 
 ### Panel
 
+- New client half (`lib/client.js`) registers a one-screen review panel in
+  `conversation.input.dock`; the host half (`lib/panel.js`) serves
+  `/api/batch-review/{state,submit,cancel,health}` and holds the single waiting review.
+- Presence-gated: the tool only waits for the panel while it has polled within the last
+  15 seconds (2.5× the idle poll interval plus the request timeout), so a missing client
+  degrades to the native card instead of blocking.
+- Cross-origin state changes are refused; the review id is checked on submit; a panel
+  review times out after 15 minutes (`PANEL_TIMEOUT`) and is reported as
+  `cancelled: true`, never as a pass.
 - Large batches: consecutive items with the same `group` (falling back to `header`)
   collapse under one heading, and each heading has 全通过 / 全待定 batch buttons. From
   50 items up the panel hints at the CSV/Excel path; 1000 items are not a panel job.
@@ -56,6 +65,31 @@ First public release, merging the former `batch-review-tool` plugin and the
 - Option buttons wrap inside the card instead of scrolling horizontally, and the note
   field follows the wrap.
 - The panel is used from 2 items up (was 5).
+
+### Hardening
+
+- Submit token: the panel hands a per-process token to the polling page through
+  `GET /state`; a POST without it (or with a stale one) is refused with 403, so a
+  cross-origin page cannot read the review or forge an answer even if it finds the route.
+- The tool call's abort signal reaches the panel: an aborted session settles the review as
+  `cancelled` and clears it, instead of leaving it to hold the panel `BUSY` for the full
+  timeout. A panel that answers `BUSY` for any other reason falls back to the native card
+  instead of failing the call with "向用户提问失败：BUSY".
+- `persist` is confined to the host process cwd subtree; writing elsewhere needs
+  `allowExternalPersist: true` in the profile config. A refused path returns
+  `persist_error` and the verdicts are still returned.
+- Item ids must be strings or finite numbers: empty strings, booleans, objects and `NaN`
+  are rejected with the item index (an empty id used to drop its answer silently).
+  `scale` ranges that would render more than 100 options are rejected, and a `choice`
+  option that is `null` or a bare string no longer crashes the mapping.
+- Presence window widened to 15 s (was 6 s): one slow poll can no longer make a live panel
+  look unmounted.
+- HTML fallback: item ids are escaped in every DOM sink, `build_review.py` rejects
+  non-integer ids and escapes U+2028/U+2029 (it already escaped `</`), and
+  `collect_server.py` refuses POSTs whose Origin/Referer is not absent, `null` or
+  `file://`.
+- CI fails on a non-zero `fail`/`cancelled` count instead of trusting a pipeline's exit
+  code, and asserts that reviewer text cannot close the page's inline `<script>`.
 
 ### Routing
 
@@ -75,19 +109,9 @@ First public release, merging the former `batch-review-tool` plugin and the
   (ports, `/health`, `/submit`, CORS/Private-Network headers, grace window), a
   one-shot lifecycle warning (browser-only page, temp dir wiped on restart, copy-JSON
   fallback), and the CSV offline path (`--format csv`).
-- `build_review.py`, `collect_server.py` and `assets/review.html` ship unchanged in
-  behaviour, with the same items schema.
-
-### Panel
-
-- New client half (`lib/client.js`) registers a one-screen review panel in
-  `conversation.input.dock`; the host half (`lib/panel.js`) serves
-  `/api/batch-review/{state,submit,cancel,health}` and holds the single waiting review.
-- Presence-gated: the tool only waits for the panel while it has polled within the last
-  6 seconds, so a missing client degrades to the native card instead of blocking.
-- Cross-origin state changes are refused; the review id is checked on submit; a second
-  concurrent review is refused (`BUSY`); a panel review times out after 15 minutes
-  (`PANEL_TIMEOUT`) and is reported as `cancelled: true`, never as a pass.
+- `build_review.py`, `collect_server.py` and `assets/review.html` keep the same items
+  schema; the review page now escapes item ids, and the collector only accepts
+  `file://`-originated submissions.
 
 ### Packaging
 

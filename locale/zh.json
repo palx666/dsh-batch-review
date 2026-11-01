@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "批阅表格",
-    "description": "新增 batch_review 工具并内置 batch-review-table 技能：agent 需要你逐条确认 3 条以上内容时，直接在 Web UI 里出原生卡片，拿到结构化结论——不用打开浏览器、不用复制粘贴。"
+    "description": "新增 batch_review 工具并内置 batch-review-table 技能：agent 需要你逐条确认 2 条及以上内容时，直接在 Web UI 里出原生卡片或一屏面板，拿到结构化结论——不用另开批阅页、不用复制粘贴。"
   }
 }
