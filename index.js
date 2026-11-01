@@ -85,8 +85,11 @@ export function apply(ctx, rawConfig) {
 
   // Routing rule as a prompt section: present on every request, so other users do
   // not have to copy an AGENTS.md rule by hand. Optional — a composition without
-  // the systemPrompt service still gets the tool and the skill.
+  // the systemPrompt service still gets the tool and the skill. Users who prefer
+  // to own the rule can switch it off with `injectRoutingRule: false`; the section
+  // is registered at apply time, so the change takes a restart.
   ctx.effect(() => {
+    if (config.injectRoutingRule === false) return () => {};
     const dispose = registerPrompt(ctx);
     return () => {
       if (typeof dispose === 'function') dispose();

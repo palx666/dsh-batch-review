@@ -375,3 +375,31 @@ test('exactly maxItems is still accepted', async () => {
   assert.equal(result.summary.total, 4);
   assert.equal(result.summary.filled, 4);
 });
+
+test('the routing rule is injected by default and can be switched off', () => {
+  const sections = [];
+  const withPrompt = () => {
+    const ctx = makeCtx(async () => ({ answers: [] }));
+    ctx.inject = (deps, callback) => {
+      if (!deps.includes('systemPrompt')) return () => {};
+      callback({
+        systemPrompt: {
+          section(definition) {
+            sections.push(definition);
+            return () => {};
+          },
+        },
+      });
+      return () => {};
+    };
+    return ctx;
+  };
+
+  apply(withPrompt());
+  assert.equal(sections.length, 1, 'the routing rule ships by default');
+  assert.equal(sections[0].name, 'dsh-batch-review:routing');
+
+  sections.length = 0;
+  apply(withPrompt(), { injectRoutingRule: false });
+  assert.equal(sections.length, 0, 'injectRoutingRule: false must not inject anything');
+});

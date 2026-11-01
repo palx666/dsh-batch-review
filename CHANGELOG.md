@@ -148,7 +148,10 @@ First public release, merging the former `batch-review-tool` plugin and the
 
 - `lib/prompt.js` registers a short system-prompt section so the "use batch_review vs
   ask_user_question, a blank is never an approval" rule ships with the plugin instead of
-  living only in one user's AGENTS.md.
+  living only in one user's AGENTS.md. The section can be switched off with
+  `injectRoutingRule: false` (Settings → Advanced → "Inject the routing rule into the
+  system prompt"), which takes effect after a restart; the rule then lives in your own
+  `AGENTS.md` and the tool is only reached when named explicitly.
 
 ### Skill
 

@@ -21,6 +21,15 @@ test('normalize keeps valid numbers and reports each bad value', () => {
   assert.equal(bad.errors.length, 3);
 });
 
+test('injectRoutingRule is a boolean knob with a true default', () => {
+  assert.equal(DEFAULTS.injectRoutingRule, true);
+  assert.deepEqual(normalize({ injectRoutingRule: false }).values, { injectRoutingRule: false });
+  assert.deepEqual(normalize({ injectRoutingRule: 'no' }).values, {});
+  assert.equal(normalize({ injectRoutingRule: 'no' }).errors.length, 1);
+  // null drops the stored override and hands the key back to the cordis layer.
+  assert.deepEqual(normalize({ injectRoutingRule: null }).removals, ['injectRoutingRule']);
+});
+
 test('normalize ignores unknown keys, arrays and null', () => {
   assert.deepEqual(normalize(null).values, {});
   assert.deepEqual(normalize([1, 2]).values, {});
@@ -61,7 +70,8 @@ test('resolveConfig layers defaults < cordis < file', (t) => {
 
 test('every default sits inside its limits', () => {
   for (const [key, value] of Object.entries(DEFAULTS)) {
-    if (key === 'allowExternalPersist') continue;
+    // Boolean knobs have no numeric range; only numeric defaults are bounded.
+    if (!(key in LIMITS)) continue;
     const { min, max } = LIMITS[key];
     assert.ok(value >= min && value <= max, key + ' default is inside its limits');
   }
