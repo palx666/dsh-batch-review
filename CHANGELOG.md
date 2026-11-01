@@ -34,7 +34,7 @@ First public release, merging the former `batch-review-tool` plugin and the
   then `~/.dsh/dsh-batch-review.config.json` written by the Settings section
   (Settings → left-nav 「批阅面板」). A save writes only the keys that changed, so
   the cordis layer keeps applying to everything else. Hard limits: `maxItems`
-  1–500, `virtualThreshold` 1–2000, `maxBodyBytes` 1 KB–128 MB.
+  1–500, `virtualThreshold` 50–2000, `maxBodyBytes` 1 KB–128 MB.
 - Panel rows above `virtualThreshold` (500 by default) render with
   `content-visibility: auto`: the browser skips layout/paint for off-screen rows
   while every row keeps its real height, so group headings and 全通过/全待定 keep

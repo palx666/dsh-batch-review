@@ -13,7 +13,8 @@
         maxItems: 100
         # Above this many rows the panel lets the browser skip off-screen
         # layout/paint (content-visibility: auto); every row keeps its real
-        # height. Hard ceiling 2000.
+        # height. Hard floor 50: below that the virtual path is a test rig, not
+        # a setting, and small batches fit one screen anyway. Hard ceiling 2000.
         virtualThreshold: 500
         # How long the panel waits for an answer before returning a cancelled
         # review (never an implicit pass).
