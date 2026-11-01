@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   idOf,
   titleOf,
+  detailOf,
   toQuestion,
   normalizeItems,
   buildRows,
@@ -28,12 +29,28 @@ test('toQuestion maps confirm items onto the host schema', () => {
   const question = toQuestion({ id: 1, type: 'confirm', op: '重启', expect: '不白屏' }, 0);
   assert.deepEqual(question, {
     id: '1',
-    question: '重启',
+    // The explanation is folded into the title: the host card's own detail row is
+    // mis-indented (2px against the header's 24px) and keeps the primary colour.
+    question: '重启 — 不白屏',
     header: '#1',
     multiSelect: false,
-    detail: '不白屏',
     options: [{ label: '通过' }, { label: '不通过' }, { label: '待定' }],
   });
+  assert.equal('detail' in question, false, 'the card must not receive a detail row');
+});
+
+test('toQuestion folds the explanation into the title, and only when there is one', () => {
+  assert.equal(toQuestion({ type: 'bool', boolLabel: '网关常驻', boolDesc: '接受' }, 0).question,
+    '网关常驻 — 接受');
+  assert.equal(toQuestion({ label: '标题', detail: '说明' }, 0).question, '标题 — 说明');
+  assert.equal(toQuestion({ label: '标题' }, 0).question, '标题');
+});
+
+test('detailOf prefers expect, then boolDesc, then detail', () => {
+  assert.equal(detailOf({ expect: 'E', boolDesc: 'B', detail: 'D' }), 'E');
+  assert.equal(detailOf({ boolDesc: 'B', detail: 'D' }), 'B');
+  assert.equal(detailOf({ detail: 'D' }), 'D');
+  assert.equal(detailOf({}), '');
 });
 
 test('toQuestion carries multiSelect through to the host schema', () => {

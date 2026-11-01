@@ -86,6 +86,11 @@ First public release, merging the former `batch-review-tool` plugin and the
 - A reverse proxy or tunnel gets no panel: the routes only accept a loopback `Host`,
   so a GUI reached through one falls back to the native card. The browser console
   says so once — otherwise "the panel never appears" was undiagnosable.
+- An item's explanation is folded into the native card's title (e.g. 「重启 — 不白屏」)
+  instead of using the host card's separate `detail` row: that row is indented 2px
+  against the title's 24px header padding and keeps the primary colour, so it read
+  as a line sticking out to the left of the title. The panel still renders the
+  explanation on its own indented, secondary-coloured line.
 
 ### Hardening
 

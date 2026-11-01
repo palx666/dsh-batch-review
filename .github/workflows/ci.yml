@@ -33,7 +33,7 @@ jobs:
           tests=$(grep -E '^# tests [0-9]+$' /tmp/node-test.tap | awk '{print $3}')
           [ -n "$pass" ] || { echo "::error::node --test printed no pass summary"; exit 1; }
           [ "$pass" = "$tests" ] || { echo "::error::pass ($pass) != tests ($tests)"; exit 1; }
-          [ "$pass" -ge 79 ] || { echo "::error::only $pass tests ran; expected at least 79"; exit 1; }
+          [ "$pass" -ge 81 ] || { echo "::error::only $pass tests ran; expected at least 81"; exit 1; }
           grep -Eq '^# fail 0$' /tmp/node-test.tap \
             || { echo "::error::node --test reported a non-zero fail count"; exit 1; }
           grep -Eq '^# cancelled 0$' /tmp/node-test.tap \
