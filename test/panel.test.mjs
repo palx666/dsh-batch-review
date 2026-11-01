@@ -261,3 +261,39 @@ test('the config route rejects a method it does not serve', async () => {
   await route.handler({ method: 'DELETE', headers: {} }, response);
   assert.equal(response.status, 405);
 });
+
+test('cancel rejects a mismatched review id', () => {
+  const p = panel();
+  const { promise } = p.begin({ title: 'T', items: [] });
+  promise.catch(() => {});
+  assert.throws(() => p.cancel({ id: 'other' }), /不匹配/);
+  assert.ok(p.state().pending !== null, 'the review is still waiting');
+  p.cancel({});
+});
+
+test('a rebound Host is refused even when the Origin matches it', async () => {
+  const p = panel({ token: 'current' });
+  const submit = p.routes().find((route) => route.path === ROUTE_BASE + '/submit');
+  const response = fakeResponse();
+  await submit.handler(fakePost({
+    host: 'evil.example:7860',
+    origin: 'http://evil.example:7860',
+    'x-batch-review-token': 'current',
+  }, '{"answers":[]}'), response);
+  assert.equal(response.status, 403, 'a non-loopback Host means the request is not the panel');
+  assert.match(response.body.error, /cross-origin/);
+});
+
+test('the config route refuses a rebound Host too', async () => {
+  const p = panel({
+    settings: { path: 'x.json', defaults: {}, limits: {}, config: {}, save: () => ({}) },
+  });
+  const route = p.routes().find((r) => r.path === ROUTE_BASE + '/config');
+  const response = fakeResponse();
+  await route.handler({
+    method: 'POST',
+    headers: { host: 'evil.example:7860', origin: 'http://evil.example:7860', 'content-type': 'application/json' },
+    [Symbol.asyncIterator]: async function* () { yield Buffer.from('{"maxItems":20}', 'utf8'); },
+  }, response);
+  assert.equal(response.status, 403);
+});
