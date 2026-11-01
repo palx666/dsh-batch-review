@@ -67,7 +67,7 @@ Agent → batch_review({ title, items: [6 条] })
 
 ## 安装
 
-**要求**：DeepSeek Harness `>=0.2.1-rc.3 <0.3.0-0`（即 0.2.x 系列，0.3.0 起不保证兼容）、Node.js `>=20`。零运行时依赖、无构建步骤（纯 ESM）。
+**要求**：DeepSeek Harness `>=0.2.1-rc.3 <=0.2.1-rc.5`（当前只在 rc.3–rc.5 上验证过）、Node.js `>=20`。零运行时依赖、无构建步骤（纯 ESM）。
 
 ```sh
 # 直接从仓库装
@@ -164,7 +164,7 @@ dsh plugin --profile <profile> add https://github.com/palx666/dsh-batch-review/a
 - **条数上限（默认 100）**：超过即**驳回**并提示调用方拆成多批，不渲染。要调上限见[设置说明](#设置说明)。
 - **大批次跳过屏外绘制**：超过 `virtualThreshold` 条时面板给行加 `content-visibility: auto`，浏览器跳过视口外的布局与绘制，但每行保留真实高度——没有固定行高，不会裁切内容。默认值（`maxItems: 100`、`virtualThreshold: 500`）下这条路径不触发；要验证就在［设置 → 高级设置］里调低 `virtualThreshold`。
 - **中文只是兜底**：既无面板上报、也无显式 `lang` 时，选项标签（`confirm`：［通过 / 不通过 / 待定］，`bool`：［是 / 否］）与 `report_text` 回退中文；其余情况跟随界面语言或 `lang` 参数。
-- **样式只用 DSH 主题变量**：原生卡片的外观完全由 DSH 提供；面板的 CSS 全部使用 `--dsw-*` 主题变量（无硬编码颜色），跟随 DSH 亮色/暗色切换。已在 orca-maid、maid-atelier、orca-link、deep-whale-manager、DeepSeek Cloud Paper 皮肤下实测可读；maid-whale 未使用。
+- **样式只用 DSH 主题变量**：原生卡片的外观完全由 DSH 提供；面板的 CSS 全部使用 `--dsw-*` 主题变量（无硬编码颜色），跟随 DSH 亮色/暗色切换。已在 DSH `0.2.1-rc.5` 下实测 orca-maid 0.1.1、maid-atelier 0.1.9、orca-link 0.1.9、deep-whale-manager 0.1.8 以及内置 DeepSeek Cloud Paper 主题可读。
 
 ## 开发
 
