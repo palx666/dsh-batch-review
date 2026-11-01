@@ -2,80 +2,82 @@
 
 [![ci](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml/badge.svg)](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml)
 
-Per-item review cards for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), built on the host's own question UI.
+[English](README.en.md) | [中文](README.md)
 
-One `batch_review` tool call hands the agent's checklist to the Web UI — native question cards for a single item, a one-screen panel in the input dock from 2 items up — and returns one structured result: a verdict and a note per item, plus a ready-to-read report. The panel is served by the host's own web server under `/api/batch-review/*`, so there is no separate app to open and no extra port — and a blank item never counts as approved.
+给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 用的「逐条批阅」工具：复用宿主**原生提问卡片**，一次调用收齐一批结论。
+
+agent 调一次 `batch_review`，把清单交给 Web UI——单条用原生提问卡片，2 条及以上走输入框上方的一屏面板；用户逐条表态后，工具返回一份结构化结果：每条一个结论 + 备注，外加一段可直接贴进回复的 `report_text`。面板由宿主自带的 web server 经 `/api/batch-review/*` 提供，**无需另开应用、不占额外端口**，而且「没表态」永远不会被当成「通过」。
 
 ```text
-agent → batch_review({ title, items: [6 items] })
-      → one-screen panel (≥2 items, panel mounted) or native cards
+agent → batch_review({ title, items: [6 条] })
+      → 一屏面板（≥2 条且面板在线）或原生卡片
       → { items:[{verdict,note,filled}], summary, report_text }
 ```
 
-## Why
+## 解决什么问题
 
-An agent that needs a verdict on six checklist items has two bad options today:
+agent 要对 6 条验收项逐一要结论时，现在只有两个坏选择：
 
-- six `ask_user_question` calls — six interruptions, and the agent must stitch the answers back together;
-- asking in prose — the user replies "1 ok, 2 ok, 4 broken", and the model re-parses text into state.
+- 连发 6 次 `ask_user_question`——打断 6 次，agent 还得自己把答案拼回去；
+- 用文字问——用户回「1 过了，2 过了，4 挂了」，模型再从文本里反解状态。
 
-`batch_review` is the third option: one call, the host's own cards, one machine-readable result. The failure mode it exists to prevent is the quiet one — an unanswered item being treated as "approved".
+`batch_review` 是第三种：一次调用、宿主自己的卡片、一份机器可读的结果。它专门防一种沉默的失败：**用户没答的那一条，被模型顺手当成通过**。
 
-## What it does
+## 它做什么
 
-- **`batch_review` tool.** The agent sends the whole batch in one call. Each item becomes one `AskUserQuestionItem` on the host's native card; the answers come back as `items[].{id,title,type,verdict,note,filled}` plus `summary` and a `report_text` the model can paste into its reply.
-- **Fail-closed blanks.** An item the user skipped or left blank returns `filled: false`. The report lists it under "未填" with the explicit note that it is not a pass. A cancelled session returns `cancelled: true` and no items at all — never a silent pass.
-- **Five item types.** `confirm` (通过 / 不通过 / 待定), `bool`, `choice`, `text`, `scale`.
-- **Multi-select on request.** Set `multiSelect: true` on any item that accepts more than one label; the answer keeps every label in `verdict` (joined with `、`) and in the new `selected[]` array.
-- **Bundled skill.** The package also registers the `batch-review-table` skill (decision-channel routing: when to use `ask_user_question` vs `batch_review` vs a full HTML page) so one install covers both halves.
-- **HTML fallback.** For large reviews or when a persisted result is needed, the skill ships a self-contained `review.html` + `build_review.py` + `collect_server.py`.
+- **`batch_review` 工具**：agent 一次传完整批条目；每条映射为宿主原生卡片上的一道题；返回 `items[].{id,title,type,verdict,note,filled}` + `summary` + `report_text`。
+- **未填 = 未通过（fail-closed）**：跳过或留空的条目返回 `filled: false`，报告里单列「未填：…（没填不代表通过，需要单独追问）」。会话中断则返回 `cancelled: true`、`items: []`——不会静默通过。
+- **五种条目类型**：`confirm`（通过 / 不通过 / 待定）、`bool`、`choice`、`text`、`scale`。
+- **按需多选**：条目设 `multiSelect: true` 即可多选；结果里 `verdict` 用「、」拼接所有选项，同时新增 `selected[]` 数组保留完整选择。
+- **内置技能**：包内同时注册 `batch-review-table` 技能（决策通道路由：`ask_user_question` / `batch_review` / HTML 表格怎么选），装插件即装技能。
+- **HTML 回退**：条目多或需要落盘时，技能自带 `review.html` + `build_review.py` + `collect_server.py`。
 
-## Two surfaces, one result shape
+## 两个界面，同一份结果
 
-| Review size | Surface | What you see |
+| 规模 | 界面 | 你看到的 |
 |---|---|---|
-| 1 item | Native card (same component `ask_user_question` uses) | One question at a time, paged |
-| 2+ items, panel mounted | **One-screen panel** in the composer dock | The whole batch at once: every item, verdict buttons, its own note field, one submit |
-| 2+ items, no client | Native card fallback | Paged, never waits for a panel that cannot answer |
+| 1 条 | 原生卡片（与 `ask_user_question` 同一个组件） | 一次一题，翻页作答 |
+| ≥2 条且面板在线 | **一屏面板**（输入框上方） | 全部条目一次列出：逐条点结论 + 独立备注框，一次提交 |
+| ≥2 条但面板不在 | 退回原生卡片 | 翻页作答，不会等一个不存在的面板 |
 
-The panel polls `GET /api/batch-review/state` only while it is mounted; if it is not (the user is on another page, the client bundle is not loaded, or the host has no web server), `batch_review` degrades to the native card instead of blocking. The returned `surface` field says which one answered.
+面板只在挂载期间轮询 `GET /api/batch-review/state`；不在线（用户不在会话页、客户端未加载、宿主没有 webServer）时，`batch_review` 自动降级为原生卡片，不会卡住。返回里的 `surface` 字段写明这次是 `panel` 还是 `cards`。
 
-Both surfaces return the same contract — `items[].{verdict,note,filled}`, `summary`, `report_text` — so the skill and the agent do not care which one was used.
+两种界面返回**同一份契约**——`items[].{verdict,note,filled}`、`summary`、`report_text`——所以技能和 agent 都不需要关心走的是哪一种。
 
-## Install
+## 安装
 
 ```sh
-# from the repository
+# 直接从仓库装
 dsh plugin --profile <profile> add github:palx666/dsh-batch-review
 
-# or a pinned tag (recommended for reproducibility)
+# 或钉住某个 tag（推荐，可复现）
 dsh plugin --profile <profile> add https://github.com/palx666/dsh-batch-review/archive/refs/tags/v1.0.0.tar.gz
 
-# or from npm once published
+# 发布到 npm 之后
 dsh plugin --profile <profile> add dsh-batch-review
 ```
 
-Restart the host (`dsh web` / the desktop app) so the plugin loads. To verify, check that the agent's tool list contains `batch_review`.
+重启宿主（`dsh web` 或桌面端）让插件加载。验证：agent 的工具列表里应出现 `batch_review`。
 
-Requirements: DeepSeek Harness `>=0.2.1-rc.3 <0.3.0-0`, Node.js `>=20`. No runtime dependencies, no build step — plain ESM.
+要求：DeepSeek Harness `>=0.2.1-rc.3 <0.3.0-0`、Node.js `>=20`。零运行时依赖、无构建步骤（纯 ESM）。
 
-## Usage
+## 用法
 
 ```json
 {
-  "title": "Acceptance: file copy / download buttons",
+  "title": "验收：文件复制 / 下载按钮",
   "persist": "review/acceptance.json",
   "items": [
-    { "id": 1, "type": "confirm", "op": "Restart DSH and reload the page", "expect": "No white screen" },
-    { "id": 2, "type": "choice", "label": "Connection mode", "options": [{ "v": "A", "t": "Direct 18080" }, { "v": "B", "t": "Via DSH subagent" }] },
-    { "id": 3, "type": "bool", "label": "Keep the gateway task resident", "boolDesc": "Accept" },
-    { "id": 4, "type": "scale", "label": "Overall rating", "min": 1, "max": 5 },
-    { "id": 5, "type": "text", "label": "Describe anything that looked off" }
+    { "id": 1, "type": "confirm", "op": "重启 DSH、刷新页面", "expect": "界面正常，不白屏" },
+    { "id": 2, "type": "choice", "label": "接入方式", "options": [{ "v": "A", "t": "直连 18080" }, { "v": "B", "t": "走 DSH subagent" }] },
+    { "id": 3, "type": "bool", "label": "网关计划任务常驻", "boolDesc": "接受" },
+    { "id": 4, "type": "scale", "label": "整体评分", "min": 1, "max": 5 },
+    { "id": 5, "type": "text", "label": "有没有看着不对的地方" }
   ]
 }
 ```
 
-Result (truncated):
+返回（截断）：
 
 ```json
 {
@@ -86,84 +88,84 @@ Result (truncated):
   ],
   "summary": { "total": 5, "filled": 4 },
   "persisted": "/abs/path/review/acceptance.json",
-  "report_text": "【批阅】Acceptance: file copy / download buttons\n共 5 条 · 已填 4 条 · 未填 1 条\n…\n未填：3（没填不代表通过，需要单独追问）"
+  "report_text": "【批阅】验收：文件复制 / 下载按钮\n共 5 条 · 已填 4 条 · 未填 1 条\n…\n未填：3（没填不代表通过，需要单独追问）"
 }
 ```
 
-Rules the tool enforces for the model:
+工具对模型的硬约束：
 
-- `items` must be a non-empty array and `id`s must be unique — answers are folded back by id, so a duplicate is rejected instead of silently overwriting;
-- `persist` (optional) writes the result as UTF-8 JSON so the verdicts survive the session; the returned `persisted` field holds the absolute path, and a write failure lands in `persist_error` without affecting the review result;
-- the tool suspends until the user answers; the model must not call it twice for the same batch;
-- `filled: false` must be followed up, never read as approval;
-- `cancelled: true` means there is no verdict at all — re-ask.
+- `items` 必须非空，`id` 必须唯一——答案按 id 回填，重复 id 会被直接拒绝，不会互相覆盖；
+- `persist`（可选）把结果另存为 UTF-8 JSON，会话结束后仍可查；返回的 `persisted` 是实际绝对路径，写失败时 `persist_error` 有原因（不影响批阅结果）；
+- 工具会挂起等用户作答，同一批**不要调两次**；
+- `filled: false` 必须追问，不能当通过；
+- `cancelled: true` 表示没有任何结论，必须重新发起。
 
-## Large batches
+## 大数量批阅
 
-- The panel groups **consecutive** items by `group` (falling back to `header`), and every group heading carries 全通过 / 全待定 batch buttons. A 100-item batch is workable when the agent sorts it into groups first; a flat 100-item list is not.
-- From 50 items up the panel shows a hint pointing at CSV/Excel. 1000 items belong in the skill's CSV export (`build_review.py --format csv`, opened in Excel with data validation), not in a click-through panel.
-- Item `group` is optional and free-form; the agent decides the split.
+- 面板按 `group`（缺省用 `header`）把**连续**条目分组，每个组头带「全通过 / 全待定」批量按钮。100 条只要 agent 先分类，是可操作的；平铺的 100 条不是。
+- 超过 50 条时面板顶部提示改用 CSV/Excel。1000 条属于技能里的 CSV 导出（`build_review.py --format csv`，用 Excel 打开可加数据验证下拉），不该硬塞进面板。
+- `group` 是可选自由文本，分几类由 agent 决定。
 
-## Routing rule ships with the plugin
+## 路由规则随包分发
 
-`lib/prompt.js` registers a short system-prompt section (~250 chars) that says when to use `batch_review` versus `ask_user_question`, and that a blank item is never an approval. It is present on every request, so other users do not have to copy an `AGENTS.md` rule by hand.
+`lib/prompt.js` 注册一段很短的 systemPrompt（约 250 字符）：说明 `batch_review` 与 `ask_user_question` 何时用，以及「未填不等于通过」。它每次请求都在，所以其他用户**不需要**手动抄一份 `AGENTS.md` 规则。
 
-If you would rather own that rule yourself, add your own `AGENTS.md` entry — the plugin section is additive, not exclusive.
+如果你想自己管这条规则，照常往 `AGENTS.md` 加即可——插件这段是叠加的，不互斥。
 
-## What ships in the package
+## 包内有什么
 
-| Path | Purpose |
+| 路径 | 作用 |
 |---|---|
-| `index.js` | Host plugin: registers the tool, the skill provider and the panel routes |
-| `lib/tool.js` | Item validation, `AskUserQuestionItem` mapping, answer folding, report, panel/card routing |
-| `lib/panel.js` | Panel channel: one waiting review, `/api/batch-review` routes, presence |
-| `lib/client.js` | Browser half: the one-screen review panel in `conversation.input.dock` |
-| `lib/prompt.js` | System-prompt routing section (batch_review vs ask_user_question) |
-| `lib/skill.js` | Skill provider for the bundled `batch-review-table` skill |
-| `skills/batch-review-table/SKILL.md` | Decision-channel routing rules and the HTML fallback workflow |
-| `skills/batch-review-table/references/html-fallback.md` | HTML fallback details (protocol, result contract, CSV) — read only when needed |
-| `skills/batch-review-table/assets/review.html` | Self-contained review page (progress, paging, “only unfinished”, copy/download JSON) |
-| `skills/batch-review-table/scripts/build_review.py` | Render a review page (or CSV) from an items JSON |
-| `skills/batch-review-table/scripts/collect_server.py` | Local 127.0.0.1 collector: page → `POST /submit` → result file + stdout |
+| `index.js` | 宿主插件：注册工具、技能 provider、面板路由 |
+| `lib/tool.js` | 条目校验、`AskUserQuestionItem` 映射、答案折叠、报告、面板/卡片路由 |
+| `lib/panel.js` | 面板通道：单条等待中的批阅、`/api/batch-review` 路由、在线判定 |
+| `lib/client.js` | 浏览器半区：`conversation.input.dock` 里的一屏批阅面板 |
+| `lib/prompt.js` | systemPrompt 路由段（batch_review vs ask_user_question） |
+| `lib/skill.js` | 内置 `batch-review-table` 技能的 provider |
+| `skills/batch-review-table/SKILL.md` | 决策通道路由规则 + HTML 回退流程 |
+| `skills/batch-review-table/references/html-fallback.md` | HTML 回退细节（协议、结果契约、CSV）——按需读 |
+| `skills/batch-review-table/assets/review.html` | 单文件批阅页（进度条、翻页、只看未完成、复制/下载 JSON） |
+| `skills/batch-review-table/scripts/build_review.py` | 从 items JSON 渲染批阅页（或 CSV） |
+| `skills/batch-review-table/scripts/collect_server.py` | 本机 127.0.0.1 回传服务：页面 → `POST /submit` → 结果文件 + stdout |
 
-## Languages
+## 语言
 
-English and Chinese ship in one package. The panel and the Settings → 「批阅面板」 section follow the GUI language (Settings → General) and switch without a reload. The host half has no locale service of its own, so the panel reports the active language on every poll: tool errors, confirm/bool option labels and `report_text` all answer in that language. Without a mounted panel the host falls back to Chinese; a script can pass `?locale=en` to any panel route to set it explicitly. The skill ships `SKILL.md` (Chinese) and `SKILL.en.md` (English).
+中英双语在同一份包里。面板与设置 →「批阅面板」跟随 GUI 语言（设置 → 通用），切换立即生效、无需刷新。宿主侧自身没有 locale 服务，所以面板在每次轮询时上报当前语言：工具错误、confirm/bool 选项标签与 `report_text` 都按同一语言输出。面板未挂载时宿主回退中文；脚本可在任意面板路由上加 `?locale=en` 显式指定。技能同时提供 `SKILL.md`（中文）与 `SKILL.en.md`（英文）。
 
-Without a panel there is no language source, so pass `lang: "en"` (or `"zh"`) on the `batch_review` call — that is the explicit escape hatch. Verdict buttons are recognised by the `tone` field the host puts on each option; a host older than this release (no `tone`) still works through a label fallback, but loses the per-group bulk buttons.
+没有面板时宿主没有语言来源，可在 `batch_review` 调用里显式传 `lang: "zh"` / `"en"` 作为兜底。**传入本包不支持的语言（如 `fr`）不会被拒绝，而是被忽略：先回落到面板上报的语言，再回退中文**——非法值不会覆盖已经显示英文的面板。面板靠宿主写在选项上的 `tone` 字段识别固定结论按钮；比本版本旧的宿主（无 `tone`）仍可用，但会走标签兜底、失去分组批量按钮。
 
-## Known limitations
+## 已知限制
 
-- **One card, one question at a time — below the threshold.** A single item still uses the native card. From 2 items up, the one-screen panel takes over when it is mounted; if it is not, the paged card is still the fallback.
-- **The panel needs its client half.** It lives in `conversation.input.dock` and only polls while mounted. A host without `webServer`, a client build that does not load the bundle, or a user on another page all mean “no panel”, and the tool degrades to the native card rather than waiting forever.
-- **The panel only accepts a loopback Host.** Its routes refuse any `Host` that is not `localhost` / `127.0.0.1` / `::1` (or the address the socket itself is bound to), so a GUI reached through a reverse proxy or tunnel gets no panel — the tool falls back to the native card and no verdict is lost. The browser console says so once.
-- **On the native card, the explanation is part of the title.** `expect` / `boolDesc` / `detail` are appended to the title with an em dash (“重启 — 不白屏”) rather than sent as the card's own `detail` row: that row is indented 2px against the title's 24px header padding and keeps the primary colour, so it read as a line sticking out to the left of the title. The panel still shows the explanation on its own indented, secondary-coloured line.
-- **Native cards are root-agent only.** `userQuestions.ask()` accepts only the live runtime root, so a subagent that lands on the native card fails with `DELEGATED_CALLER`. The panel path does not go through that host call, so a subagent can still ask through the panel while it is mounted.
-- **Persistence is opt-in.** Nothing about a review is written to disk by default; pass `persist: "<path>"` and the verdicts are saved as UTF-8 JSON (the returned `persisted` field is the absolute path actually written). `persist` is confined to the host process cwd unless the profile sets `allowExternalPersist: true`. Without `persist`, a session that ends mid-review returns `cancelled: true` and the batch must be asked again. The Settings section keeps its own config file (see the cap entry below).
-- **Item cap (100 by default).** A review above it is **rejected** with a message telling the caller to split the batch; nothing renders. Tunables live in three layers, lowest first: built-in defaults, the `cordis.patch.yml` `config` block, then `~/.dsh/dsh-batch-review.config.json` written by the Settings section (**Settings → left-nav 「批阅面板」**). A save from that page only writes the keys you changed, so the cordis layer keeps applying to everything else. Hard limits: `maxItems` 1–500, `virtualThreshold` 50–2000, `maxBodyBytes` 1 KB–128 MB; the defaults are 100 / 500 / 64 MB.
-- **Large batches skip off-screen paint.** Above `virtualThreshold` rows the panel applies `content-visibility: auto`, so the browser skips layout and paint for rows outside the viewport while every row keeps its real height — no fixed row height, nothing clipped. The defaults (`maxItems: 100`, `virtualThreshold: 500`) keep this path off; lower `virtualThreshold` in Settings → 高级设置 to exercise it.
-- **Chinese option labels by default.** `confirm` renders 通过 / 不通过 / 待定 and `bool` renders 是 / 否. Edit the constants in `lib/tool.js` if you need another language.
-- **Theme tokens only.** Native cards are styled entirely by DSH; the panel's own CSS uses `--dsw-*` theme tokens exclusively (no literal colors), so it follows the host's light/dark switch.
+- **一次只显示一道题——阈值以下**：1 条走原生卡片，逐页作答；从 2 条起，面板在线时自动换成**一屏面板**，面板不在线时仍退回卡片。
+- **面板依赖客户端半区**：面板挂在 `conversation.input.dock`，只在挂载时轮询。宿主没有 `webServer`、客户端没加载 bundle、或用户不在会话页，都等于「面板不在线」，工具会降级到原生卡片而不是一直等。
+- **面板只接受回环 Host**：接口拒绝 `localhost` / `127.0.0.1` / `::1`（或 socket 自身绑定地址）以外的 `Host`，所以经反代、隧道访问 GUI 时面板不会出现，工具退回原生卡片、结论不丢；浏览器控制台会提示一次。
+- **原生卡片上说明文字并入标题**：`expect` / `boolDesc` / `detail` 会用破折号接在标题后（如「重启 — 不白屏」），不再作为宿主卡片的 `detail` 行下发——那一行的左边距只有 2px（标题所在的 header 是 24px）且继承主色，看起来像顶到标题左侧外的一条线。面板仍把说明作为独立的、缩进且灰色的说明行显示。
+- **原生卡片只认 root agent**：`userQuestions.ask()` 只接受 live runtime root，子代理走到卡片路径会拿到 `DELEGATED_CALLER`。面板路径不经过这个宿主调用，所以面板在线时子代理仍能通过面板提问。
+- **持久化需显式开启**：批阅结果默认不落盘；传 `persist: "<路径>"` 才会把结论写成 UTF-8 JSON（返回的 `persisted` 是实际写入的绝对路径）。`persist` 默认只能写宿主进程 cwd 子树，写到别处需在配置里设 `allowExternalPersist: true`。不传的话，会话中途结束就是 `cancelled: true`，需要重新问一遍。设置页会单独写自己的配置文件（见下一条）。
+- **条数上限（默认 100）**：超过即**驳回**并提示调用方拆成多批，不进入渲染。可调项分三层，优先级由低到高：内置默认值 → `cordis.patch.yml` 的 `config` → 设置页写的 `~/.dsh/dsh-batch-review.config.json`（**设置 → 左侧导航「批阅面板」**）。设置页保存只写你改过的键，其余键继续由 cordis 层决定。硬上限：`maxItems` 1–500、`virtualThreshold` 50–2000、`maxBodyBytes` 1 KB–128 MB；默认值分别是 100 / 500 / 64 MB。
+- **大批次跳过屏外绘制**：超过 `virtualThreshold` 条时面板给行加 `content-visibility: auto`，浏览器跳过视口外的布局与绘制，但每行保留真实高度——没有固定行高，不会裁切内容。默认值（`maxItems: 100`、`virtualThreshold: 500`）下这条路径不触发；要验证就在「设置 → 高级设置」里调低 `virtualThreshold`。
+- **中文只是兜底**：既无面板上报、也无显式 `lang` 时，选项标签（`confirm`：「通过 / 不通过 / 待定」，`bool`：「是 / 否」）与 `report_text` 回退中文；其余情况跟随界面语言或 `lang` 参数。
+- **样式只用宿主主题变量**：原生卡片的外观完全由 DSH 提供；面板的 CSS 全部使用 `--dsw-*` 主题变量（无硬编码颜色），跟随宿主亮色/暗色切换。
 
-## Development
+## 开发
 
 ```sh
-npm test        # node --test — mapping, folding, report and plugin registration
+npm test        # node --test：映射、折叠、报告、插件注册
 ```
 
-The HTML fallback has its own smoke path:
+HTML 回退有自己的冒烟路径：
 
 ```sh
 python skills/batch-review-table/scripts/build_review.py --data examples/items.json --out review/demo.html
-python skills/batch-review-table/scripts/collect_server.py   # then open review/demo.html
+python skills/batch-review-table/scripts/collect_server.py   # 然后用浏览器打开 review/demo.html
 ```
 
-## License
+## 许可
 
-MIT — see [LICENSE](LICENSE).
+MIT，见 [LICENSE](LICENSE)。
 
-## Built with
+## 制作
 
-Built with [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh): the tool, the panel and the skill are written against its host APIs.
+使用 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）制作：工具、面板与技能均基于其宿主 API 编写。
 
 [![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
