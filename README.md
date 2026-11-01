@@ -1,5 +1,7 @@
 # dsh-batch-review
 
+[![ci](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml/badge.svg)](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml)
+
 Per-item review cards for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), built on the host's own question UI.
 
 One `batch_review` tool call hands the agent's checklist to the Web UI — native question cards for a single item, a one-screen panel in the input dock from 2 items up — and returns one structured result: a verdict and a note per item, plus a ready-to-read report. The panel is served by the host's own web server under `/api/batch-review/*`, so there is no separate app to open and no extra port — and a blank item never counts as approved.

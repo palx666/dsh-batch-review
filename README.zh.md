@@ -1,5 +1,7 @@
 # dsh-batch-review
 
+[![ci](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml/badge.svg)](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml)
+
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 用的「逐条批阅」工具：复用宿主**原生提问卡片**，一次调用收齐一批结论。
 
 agent 调一次 `batch_review`，把清单交给 Web UI——单条用原生提问卡片，2 条及以上走输入框上方的一屏面板；用户逐条表态后，工具返回一份结构化结果：每条一个结论 + 备注，外加一段可直接贴进回复的 `report_text`。面板由宿主自带的 web server 经 `/api/batch-review/*` 提供，**无需另开应用、不占额外端口**，而且「没表态」永远不会被当成「通过」。
