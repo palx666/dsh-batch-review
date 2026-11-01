@@ -92,6 +92,19 @@ First public release, merging the former `batch-review-tool` plugin and the
   as a line sticking out to the left of the title. The panel still renders the
   explanation on its own indented, secondary-coloured line.
 
+### Internationalization
+
+- English and Chinese ship in one package. The panel and the Settings section
+  follow the GUI language through the host's locale service and switch without a
+  reload; the client reports the active language on every `/state` poll, and the
+  host (which has no locale service of its own) uses it for option labels,
+  validation errors and `report_text`. Without a mounted panel the host falls
+  back to Chinese.
+- Confirm/bool options now carry a `tone` (`pass`/`fail`/`pending`/`yes`/`no`)
+  next to their translated label, so the panel no longer recognises verdict
+  buttons by their Chinese text.
+- The skill ships `SKILL.md` (Chinese) and `SKILL.en.md` (English).
+
 ### Hardening
 
 - Submit token: the panel hands a per-process token to the polling page through

@@ -8,6 +8,7 @@ description: Use whenever the user owes a decision — anything where they must 
 把「需要用户表态」变成可点界面：**能点鼠标就不打字**。
 
 > 本技能随 `dsh-batch-review` 插件内置安装，不需要手动复制到 `~/.dsh/skills/`。
+> English version: [SKILL.en.md](SKILL.en.md).
 
 ## 何时用
 

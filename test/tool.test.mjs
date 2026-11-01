@@ -34,7 +34,11 @@ test('toQuestion maps confirm items onto the host schema', () => {
     question: '重启 — 不白屏',
     header: '#1',
     multiSelect: false,
-    options: [{ label: '通过' }, { label: '不通过' }, { label: '待定' }],
+    options: [
+      { label: '通过', tone: 'pass' },
+      { label: '不通过', tone: 'fail' },
+      { label: '待定', tone: 'pending' },
+    ],
   });
   assert.equal('detail' in question, false, 'the card must not receive a detail row');
 });
@@ -67,7 +71,7 @@ test('multi_select is accepted as an alias for multiSelect', () => {
 
 test('toQuestion maps bool, scale, choice and text items', () => {
   assert.deepEqual(toQuestion({ type: 'bool', label: '常驻', boolDesc: '接受' }, 0).options,
-    [{ label: '是' }, { label: '否' }]);
+    [{ label: '是', tone: 'yes' }, { label: '否', tone: 'no' }]);
 
   const scale = toQuestion({ type: 'scale', label: '评分', min: 2, max: 4 }, 0);
   assert.deepEqual(scale.options, [{ label: '2' }, { label: '3' }, { label: '4' }]);

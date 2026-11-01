@@ -48,7 +48,9 @@ export function apply(ctx, rawConfig) {
       limits: LIMITS,
       config,
       save(patch) {
-        const { values, errors, removals } = normalize(patch);
+        // The settings page reports its UI language on every request, so a bad
+        // value is reported in the language the owner is reading.
+        const { values, errors, removals } = normalize(patch, panel.locale);
         if (errors.length > 0) {
           const error = new Error(errors.join('；'));
           error.status = 400;

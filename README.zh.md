@@ -126,6 +126,10 @@ dsh plugin --profile <profile> add dsh-batch-review
 | `skills/batch-review-table/scripts/build_review.py` | 从 items JSON 渲染批阅页（或 CSV） |
 | `skills/batch-review-table/scripts/collect_server.py` | 本机 127.0.0.1 回传服务：页面 → `POST /submit` → 结果文件 + stdout |
 
+## 语言
+
+中英双语在同一份包里。面板与设置 →「批阅面板」跟随 GUI 语言（设置 → 通用），切换立即生效、无需刷新。宿主侧自身没有 locale 服务，所以面板在每次轮询时上报当前语言：工具错误、confirm/bool 选项标签与 `report_text` 都按同一语言输出。面板未挂载时宿主回退中文；脚本可在任意面板路由上加 `?locale=en` 显式指定。技能同时提供 `SKILL.md`（中文）与 `SKILL.en.md`（英文）。
+
 ## 已知限制
 
 - **一次只显示一道题——阈值以下**：1 条走原生卡片，逐页作答；从 2 条起，面板在线时自动换成**一屏面板**，面板不在线时仍退回卡片。

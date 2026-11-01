@@ -39,6 +39,7 @@
     "index.js",
     "lib",
     "skills/batch-review-table/SKILL.md",
+    "skills/batch-review-table/SKILL.en.md",
     "skills/batch-review-table/references",
     "skills/batch-review-table/assets/review.html",
     "skills/batch-review-table/scripts/build_review.py",
