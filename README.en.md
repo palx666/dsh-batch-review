@@ -164,7 +164,7 @@ English and Chinese are both supported, defaulting to the GUI language and switc
 - **Item cap (100 by default).** A review above it is **rejected** with a message telling the caller to split the batch; nothing renders. To change the cap, see [Settings](#settings).
 - **Large batches skip off-screen paint.** Above `virtualThreshold` rows the panel applies `content-visibility: auto`, so the browser skips layout and paint for rows outside the viewport while every row keeps its real height — no fixed row height, nothing clipped. The defaults (`maxItems: 100`, `virtualThreshold: 500`) keep this path off; lower `virtualThreshold` in Settings → 高级设置 to exercise it.
 - **Chinese is only the fallback.** With no panel report and no explicit `lang`, option labels (`confirm`: 通过 / 不通过 / 待定, `bool`: 是 / 否) and `report_text` fall back to Chinese. Anywhere else they follow the UI language, or the `lang` argument.
-- **Theme tokens only.** Native cards are styled entirely by DSH; the panel's own CSS uses `--dsw-*` theme tokens exclusively (no literal colors), so it follows the host's light/dark switch. Verified readable on DSH `0.2.1-rc.5` with orca-maid 0.1.1, maid-atelier 0.1.9, orca-link 0.1.9 and deep-whale-manager 0.1.8, plus the built-in DeepSeek Cloud Paper theme.
+- **Theme tokens only.** Native cards are styled entirely by DSH; the panel's own CSS uses `--dsw-*` theme tokens exclusively (no literal colors), so it follows the host's light/dark switch. Verified readable on DSH `0.2.1-rc.5` with orca-maid 0.1.1, maid-atelier 0.1.9, orca-link 0.1.9, deep-whale-manager 0.1.8 and maid-whale-webui 0.1.1 (DeepSeek Cloud Paper).
 
 ## Development
 
