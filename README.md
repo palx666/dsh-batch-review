@@ -53,6 +53,8 @@ Agent → batch_review({ title, items: [6 条] })
 
 两种界面返回**同一份契约**——`items[].{verdict,note,filled}`、`summary`、`report_text`——所以技能和 Agent 都不需要关心走的是哪一种。
 
+批阅只属于**发起它的会话**：切换到别的会话或工作区时，不会看到别人的待办批阅。
+
 ## 设置说明
 
 设置 → 左侧导航［批阅面板］里有 3 项基本设置：

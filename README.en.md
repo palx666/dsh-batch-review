@@ -53,6 +53,8 @@ The panel polls `GET /api/batch-review/state` only while it is mounted; if it is
 
 Both surfaces return the same contract — `items[].{verdict,note,filled}`, `summary`, `report_text` — so the skill and the agent do not care which one was used.
 
+A review belongs to the **session that asked for it**: switching to another session or workspace does not show someone else's pending review.
+
 ## Settings
 
 Settings → left-nav Batch review has three basic settings:

@@ -376,6 +376,25 @@ test('exactly maxItems is still accepted', async () => {
   assert.equal(result.summary.filled, 4);
 });
 
+test('execute binds the panel review to the calling session', async () => {
+  const seen = [];
+  const fakePanel = {
+    available: () => true,
+    locale: 'zh',
+    begin({ sessionId }) {
+      seen.push(sessionId);
+      return { id: 'fake-review', promise: Promise.resolve({ answers: [] }) };
+    },
+  };
+  const tool = makeBatchReviewTool(
+    { userQuestions: { ask: async () => ({ answers: [] }) } },
+    { panel: fakePanel, config: { panelThreshold: 1 } },
+  );
+  const exec = { agent: { session: { id: 'sess-42' } }, signal: new AbortController().signal };
+  await tool.execute({ items: [{ id: 1, type: 'confirm' }] }, exec);
+  assert.deepEqual(seen, ['sess-42'], 'the asking session id reaches the panel');
+});
+
 test('the routing rule is injected by default and can be switched off', () => {
   const sections = [];
   const withPrompt = () => {

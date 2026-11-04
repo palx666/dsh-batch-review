@@ -93,6 +93,29 @@ test('a second concurrent review is refused', () => {
   p.cancel({});
 });
 
+test('a pending review is shown only to the session that asked for it', () => {
+  const p = panel();
+  const { id, promise } = p.begin({ title: 'T', items: [], sessionId: 'sess-a' });
+  promise.catch(() => {});
+
+  assert.equal(p.state('sess-a').pending.id, id);
+  assert.equal(p.state('sess-a').pending.session_id, 'sess-a');
+  // Another session — or another workspace, which is another session — sees nothing.
+  assert.equal(p.state('sess-b').pending, null);
+  // A poller that reports no session (an older client) still sees it.
+  assert.equal(p.state(null).pending.id, id);
+  p.cancel({});
+});
+
+test('a review started without a session id stays visible everywhere', () => {
+  const p = panel();
+  const { id, promise } = p.begin({ title: 'T', items: [] });
+  promise.catch(() => {});
+  assert.equal(p.state('sess-a').pending.id, id);
+  assert.equal(p.state('sess-b').pending.id, id);
+  p.cancel({});
+});
+
 test('a review without an answer times out', async () => {
   const p = panel();
   const { promise } = p.begin({ title: 'T', items: [] });

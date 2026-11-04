@@ -152,6 +152,9 @@ First public release, merging the former `batch-review-tool` plugin and the
   `injectRoutingRule: false` (Settings → Advanced → "Inject the routing rule into the
   system prompt"), which takes effect after a restart; the rule then lives in your own
   `AGENTS.md` and the tool is only reached when named explicitly.
+- A panel review is bound to the session that asked for it: the client reports its
+  session id on every poll and the host hides a pending review from any other session,
+  so switching sessions (or workspaces) no longer shows someone else's review.
 
 ### Skill
 
