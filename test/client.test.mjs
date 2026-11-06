@@ -223,3 +223,47 @@ test('dictionaries are registered when the locale service appears after apply', 
   module.__test.activeLang();
   assert.equal(service.calls.filter((call) => call.kind === 'register').length, 2);
 });
+
+test('activeLang prefers <html lang> so a panel mounted before the locale service follows the UI language', () => {
+  const module = loadModule();
+  const service = makeLocaleService();
+  const { ctx } = makeClientCtx(() => service);
+  module.apply(ctx);
+
+  // The document is the host's own signal; it wins over the snapshot so a panel
+  // that mounted before the locale service still shows the active language.
+  // `activeLang` returns the raw tag; callers map it through `pickLang`.
+  globalThis.document.documentElement = { lang: 'zh-CN' };
+  try {
+    assert.equal(module.__test.activeLang(), 'zh-CN');
+    globalThis.document.documentElement = { lang: 'en-US' };
+    assert.equal(module.__test.activeLang(), 'en-US');
+  } finally {
+    delete globalThis.document.documentElement;
+  }
+
+  // Without the attribute the snapshot still decides (the fake service says en).
+  assert.equal(module.__test.activeLang(), 'en');
+});
+
+test('fixed verdict tones render in the active UI language regardless of the labels the review shipped with', () => {
+  const module = loadModule();
+
+  globalThis.document.documentElement = { lang: 'en-US' };
+  try {
+    // The tool ships the labels in the language the review started with, so a
+    // review started before the panel reported a language keeps Chinese ones.
+    assert.equal(module.__test.verdictText('pass', '通过'), 'Pass');
+    assert.equal(module.__test.verdictText('fail', '不通过'), 'Fail');
+    assert.equal(module.__test.verdictText('pending', '待定'), 'Pending');
+    assert.equal(module.__test.verdictText('yes', '是'), 'Yes');
+    assert.equal(module.__test.verdictText('no', '否'), 'No');
+    // Caller-supplied choices keep their own text.
+    assert.equal(module.__test.verdictText('choice', '方案 A'), '方案 A');
+
+    globalThis.document.documentElement = { lang: 'zh-CN' };
+    assert.equal(module.__test.verdictText('pass', '通过'), '通过');
+  } finally {
+    delete globalThis.document.documentElement;
+  }
+});
