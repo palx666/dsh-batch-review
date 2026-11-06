@@ -2,14 +2,14 @@
 
 ## 1.0.1 — 2026-11-07
 
-### Fixes
+### 修复
 
-- **Cross-session leak.** The review panel kept showing a review in other sessions; each review now belongs to the session that asked for it.
-- **UI language.** Panel buttons follow the interface language (an English UI now shows English) and switch immediately when the language changes.
+- **跨会话串台**：修复了提问面板在其他会话也一直显示的问题。
+- **界面语言跟随**：英文界面下按钮现在能正常显示英文，切换语言设置时立即跟随。
 
-### Changed
+### 变更
 
-- `engines.dsh`: `>=0.2.1-rc.3 <=0.2.1-rc.5` → `>=0.2.1-rc.3 <=0.2.2` — the upper bound follows the current 0.2.2 line without pinning one RC.
+- `engines.dsh`：`>=0.2.1-rc.3 <=0.2.1-rc.5` → `>=0.2.1-rc.3 <=0.2.2`。
 
 ## 1.0.0 — 2026-11-01
 
