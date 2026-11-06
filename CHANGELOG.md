@@ -2,20 +2,14 @@
 
 ## 1.0.1 — 2026-11-07
 
-Compatibility release for DSH 0.2.x. No code change; only the supported range moves.
+### Fixes
 
-- `engines.dsh` is now `>=0.2.1-rc.3 <=0.2.2` (was `<=0.2.1-rc.5`). The upper bound
-  tracks the current DSH `0.2.2` line without pinning one RC, so any `0.2.2`
-  prerelease satisfies it while `0.2.3` and later still fail closed.
-- Verified against DSH `0.2.2-rc.1`: every host API the plugin uses is still present
-  with the same shape (`tools.register`, `userQuestions.ask`,
-  `skills.registerProvider`, `systemPrompt.section`, `webServer.register`,
-  `ctx.inject` / `ctx.effect`), and the client slots `conversation.input.dock`
-  and `settings.section` still exist.
-- Tests: 102/102 pass.
-- **Not re-tested on this release**: a live panel round-trip and skin rendering —
-  while the old range was unmet the host skipped the bundle, so this entry only
-  unblocks admission. Re-check the panel visually after upgrading.
+- **Cross-session leak.** The review panel kept showing a review in other sessions; each review now belongs to the session that asked for it.
+- **UI language.** Panel buttons follow the interface language (an English UI now shows English) and switch immediately when the language changes.
+
+### Changed
+
+- `engines.dsh`: `>=0.2.1-rc.3 <=0.2.1-rc.5` → `>=0.2.1-rc.3 <=0.2.2` — the upper bound follows the current 0.2.2 line without pinning one RC.
 
 ## 1.0.0 — 2026-11-01
 
