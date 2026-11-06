@@ -69,7 +69,7 @@ Under **Advanced** there are also `virtualThreshold`, `maxBodyBytes`, `allowExte
 
 ## Install
 
-**Requirements**: DeepSeek Harness `>=0.2.1-rc.3 <=0.2.1-rc.5` (only rc.3–rc.5 have been verified), Node.js `>=20`. No runtime dependencies, no build step — plain ESM.
+**Requirements**: DeepSeek Harness `>=0.2.1-rc.3 <=0.2.2` (from rc.3; host APIs and client slots checked on 0.2.2-rc.1, no full manual re-test), Node.js `>=20`. No runtime dependencies, no build step — plain ESM.
 
 ```sh
 # from the repository

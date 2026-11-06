@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.0.1 — 2026-11-07
+
+Compatibility release for DSH 0.2.x. No code change; only the supported range moves.
+
+- `engines.dsh` is now `>=0.2.1-rc.3 <=0.2.2` (was `<=0.2.1-rc.5`). The upper bound
+  tracks the current DSH `0.2.2` line without pinning one RC, so any `0.2.2`
+  prerelease satisfies it while `0.2.3` and later still fail closed.
+- Verified against DSH `0.2.2-rc.1`: every host API the plugin uses is still present
+  with the same shape (`tools.register`, `userQuestions.ask`,
+  `skills.registerProvider`, `systemPrompt.section`, `webServer.register`,
+  `ctx.inject` / `ctx.effect`), and the client slots `conversation.input.dock`
+  and `settings.section` still exist.
+- Tests: 102/102 pass.
+- **Not re-tested on this release**: a live panel round-trip and skin rendering —
+  while the old range was unmet the host skipped the bundle, so this entry only
+  unblocks admission. Re-check the panel visually after upgrading.
+
 ## 1.0.0 — 2026-11-01
 
 First public release, merging the former `batch-review-tool` plugin and the

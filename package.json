@@ -1,6 +1,6 @@
 {
   "name": "dsh-batch-review",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Native per-item review cards for DeepSeek Harness: one batch_review tool call, structured verdicts back. Ships a one-screen panel in the Web UI served by the host's own /api/batch-review routes — no separate app to open, no extra port.",
   "type": "module",
   "sideEffects": ["lib/client.js"],
@@ -16,7 +16,7 @@
   },
   "engines": {
     "node": ">=20",
-    "dsh": ">=0.2.1-rc.3 <=0.2.1-rc.5"
+    "dsh": ">=0.2.1-rc.3 <=0.2.2"
   },
   "keywords": [
     "dsh",

@@ -69,7 +69,7 @@ Agent → batch_review({ title, items: [6 条] })
 
 ## 安装
 
-**要求**：DeepSeek Harness `>=0.2.1-rc.3 <=0.2.1-rc.5`（当前只在 rc.3–rc.5 上验证过）、Node.js `>=20`。零运行时依赖、无构建步骤（纯 ESM）。
+**要求**：DeepSeek Harness `>=0.2.1-rc.3 <=0.2.2`（rc.3 起；0.2.2-rc.1 上已核对宿主 API 与客户端 slot，未做全量真机复测）、Node.js `>=20`。零运行时依赖、无构建步骤（纯 ESM）。
 
 ```sh
 # 直接从仓库装
