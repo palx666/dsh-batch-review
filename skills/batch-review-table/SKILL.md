@@ -65,7 +65,7 @@ description: Use whenever the user owes a decision — anything where they must 
 ```
 
 - `type`: `confirm`（通过/不通过/待定）、`choice`、`bool`、`text`、`scale`；
-- `choice` 的选项按**重要度**排序：**推荐项固定放第一位**（面板按数组顺序自动编号，所以它就是 A），其余依次 B、C…；选项文字（`t`/`label`）里**不要**写 A/B/C 前缀。正文引用时按界面字母说「A（推荐）/B/C」。面板对调用方自己写了字母的选项会原样沿用、不再重复编号，但那只是兼容，不是推荐写法；
+- `choice` 的选项按**重要度**排序：**推荐项固定放第一位**（面板按数组顺序自动编号，所以它就是 A），其余依次 B、C…；选项文字（`t`/`label`）里**不要**写字母或数字编号。正文引用时按界面字母说「A（推荐）/B/C」。面板对调用方自己写的编号（`B …`、`1. …`、`2、…`）会原样沿用、不再重复编号，但那只是兼容，不是推荐写法；
 - `multiSelect`（可选）：条目加 `"multiSelect": true` 时同题可选多个；结果 `verdict` 用［、］拼接、`selected[]` 保留数组，报告里同样显示多个；
 - `id` 必须唯一：答案按 id 回填，重复的 id 会被工具直接拒绝；
 - `persist`（可选）：把结果另存为 UTF-8 JSON，会话结束后仍可查；返回里 `persisted` 是实际写入的绝对路径，写失败时 `persist_error` 有原因（不影响批阅结果本身）；

@@ -82,10 +82,11 @@ Pass every item in one call:
 - `type`: `confirm` (pass/fail/pending), `choice`, `bool`, `text`, `scale`;
 - Order a `choice` item's options by importance: **the recommended option
   goes first** (the panel numbers by array order, so it becomes A), the rest
-  follow as B, C…; do not write a letter prefix in the option text
+  follow as B, C…; do not write a letter or number prefix in the option text
   (`t`/`label`). Cite options by the panel letter in prose ("A (recommended) /
-  B / C"). A caller-written letter is kept verbatim instead of being numbered
-  twice, but that is only a compatibility path, not the recommended spelling;
+  B / C"). A caller-written marker (`B …`, `1. …`, `2、…`) is kept verbatim
+  instead of being numbered twice, but that is only a compatibility path, not
+  the recommended spelling;
 - `multiSelect` (optional): `"multiSelect": true` lets one item take several
   answers; `verdict` joins them with the active language's separator (［、］ in
   Chinese, ", " in English) and `selected[]` keeps the array, and the report lists
