@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-L2 回传服务：页面点「提交给我」→ POST JSON → 回执 + 结果落盘 + stdout → 退出。
+L2 回传服务：页面点“提交给我”→ POST JSON → 回执 + 结果落盘 + stdout → 退出。
 
 协议
     GET  /health   → 200 {"ok":true,"service":"review-collect","version":"2"}
@@ -45,7 +45,7 @@ class Handler(BaseHTTPRequestHandler):
         """只接受批阅页（file:// 打开）的提交。
 
         浏览器对 file:// 页面发出的跨源 POST，Origin 通常是字面 "null"，
-        部分浏览器干脆不发；因此放行「缺失 / null / file:// 开头」三种，
+        部分浏览器干脆不发；因此放行“缺失 / null / file:// 开头”三种，
         其余（任意 http(s) 站点）一律视为跨站提交，拒绝。
 
         同源 http://127.0.0.1:PORT 不会出现在正常流程里：本服务只响应

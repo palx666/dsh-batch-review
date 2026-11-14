@@ -1,36 +1,36 @@
 # dsh-batch-review
 
-[![ci](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml/badge.svg)](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml)
+[![ci](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml/badge.svg)](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml) [![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
 
 [English](README.en.md) | [中文](README.md)
 
 ## Overview
 
-Multi-item review for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness): one interaction, a whole batch of answers. When the agent needs the user to confirm, choose, or approve several things at once, it opens the panel; the user clicks through item by item and submits once, and structured results come back to the agent — without breaking the workflow.
+Multi-item review for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness): the upgraded version of the native question card, built to improve how an agent asks the user to confirm, choose, or approve multiple things at once. A review panel can hold several groups or items; the user answers by clicking options or typing text — in bulk or one by one — and structured results come back to the agent without breaking the workflow.
 
 ## Hard rule: if the user owes a decision, call `batch_review`
 
 **The plugin injects this rule automatically — no setup needed.** It registers a `dsh-batch-review:routing` section in the system prompt (present on every request) and ships a `batch-review-table` skill carrying the same judgement.
 
 - **Whenever the user owes an answer** — a confirmation, a choice, an approval, a rejection, a rating, a comment — give them a clickable surface instead of asking in prose.
-- **2+ items that need independent verdicts** → `batch_review`; **a single question or plan approval** → `ask_user_question`.
+- **Whenever the user owes a decision → `batch_review`** — a single item also uses the panel (default threshold 1); **only plan approval / host approval prompts** → `ask_user_question` (only the native API can emit those intents; `batch_review` cannot render them).
 - **An unanswered item is not an approval**: `filled: false` must be followed up, never assumed passed.
 
-**Prefer not to have it injected?** Settings → left-nav Batch review → Advanced, clear "Inject the routing rule into the system prompt" (equivalently `injectRoutingRule: false`); it takes effect after a **restart**. Nothing is written to the system prompt then — and you should **keep the rule yourself**: state in your own `AGENTS.md` **when `batch_review` should be used** (which cases take the batch form, which take a single `ask_user_question`), otherwise the agent will not reach for the tool on its own (it still works when you name it explicitly).
+**Prefer not to have it injected?** Settings → left-nav Batch review → Advanced, clear "Inject the routing rule into the system prompt" (equivalently `injectRoutingRule: false`); it takes effect after a **restart**. Nothing is written to the system prompt then — and you should **keep the rule yourself**: state in your own `AGENTS.md` **when `batch_review` should be used** (ordinary decisions take `batch_review`; only plan approval / approval prompts take `ask_user_question`), otherwise the agent will not reach for the tool on its own (it still works when you name it explicitly).
 
 ## How it works
 
-One `batch_review` tool call hands the agent's checklist to the Web UI — native question cards for a single item, a one-screen panel in the input dock at or above the panel threshold (2 items by default) — and returns one structured result: a verdict and a note per item, plus a ready-to-read report. The panel is served by the host's own web server under `/api/batch-review/*`, so there is no separate app to open and no extra port — and a blank item never counts as approved.
+One `batch_review` tool call hands the agent's checklist to the Web UI — the one-screen panel in the input dock by default (panel threshold 1, so a single item uses it too; the native card is only the fallback when the panel is offline) — and returns one structured result: a verdict and a note per item, plus a ready-to-read report. The panel is served by the host's own web server under `/api/batch-review/*`, so there is no separate app to open and no extra port — and a blank item never counts as approved.
 
 ```text
 agent → batch_review({ title, items: [6 items] })
-      → one-screen panel (at/above the threshold, panel mounted) or native cards
+      → one-screen panel (default threshold 1, panel mounted) or native cards (degraded)
       → { items:[{verdict,note,filled}], summary, report_text }
 ```
 
 ## What it does
 
-- **`batch_review` tool.** The agent sends the whole batch in one call. Each item becomes one `AskUserQuestionItem` on the host's native card; the answers come back as `items[].{id,title,type,verdict,note,filled}` plus `summary` and a `report_text` the model can paste into its reply.
+- **`batch_review` tool.** The agent sends the whole batch in one call. Each item becomes one `AskUserQuestionItem` (on the panel by default); the answers come back as `items[].{id,title,type,verdict,note,filled}` plus `summary` and a `report_text` the model can paste into its reply.
 - **Fail-closed blanks.** An item the user skipped or left blank returns `filled: false`. The report lists it under "Not answered" with the explicit note that it is not a pass. A cancelled session returns `cancelled: true` and no items at all — never a silent pass.
 - **Five item types.** `confirm` (Pass / Fail / Pending), `bool`, `choice`, `text`, `scale`.
 - **Multi-select on request.** Set `multiSelect: true` on any item that accepts more than one label; the answer keeps every label in `verdict` (joined with `、`) and in the new `selected[]` array.
@@ -39,15 +39,7 @@ agent → batch_review({ title, items: [6 items] })
 
 ## Relationship to native cards
 
-`batch_review` builds on DSH's native question cards: a small batch uses the card directly, and from the threshold up it becomes a one-screen panel above the input box — both return the same result shape.
-
-**The threshold is configurable**: `panelThreshold` (default 2, range 1–100) is the number of items from which the panel takes over — **set it to 1 to always use the panel** (a single item goes to the panel too, never the native card). See [Settings](#settings) for how to change it.
-
-| Review size | Surface | What you see |
-|---|---|---|
-| Below the threshold (1 item by default) | Native card (same component `ask_user_question` uses) | One question at a time, paged |
-| At or above the threshold, panel mounted (2+ items by default) | **One-screen panel** in the composer dock | The whole batch at once: every item, verdict buttons, its own note field, one submit |
-| At or above the threshold, no client | Native card fallback | Paged, never waits for a panel that cannot answer |
+`batch_review` builds on DSH's native question cards — think of it as the upgraded version: it fully replaces the native card in normal use, and only falls back to the card in specific cases (the panel call fails, a manual setting, and so on). If you want the native card for small batches, raise the panel trigger threshold in Settings.
 
 The panel polls `GET /api/batch-review/state` only while it is mounted; if it is not (the user is on another page, the client bundle is not loaded, or the host has no web server), `batch_review` degrades to the native card instead of blocking. The returned `surface` field says which one answered.
 
@@ -61,9 +53,9 @@ Settings → left-nav Batch review has three basic settings:
 
 | Setting | Default | Range | What it does |
 |---|---|---|---|
-| Panel threshold | 2 | 1–100 | Item count at which the native card becomes the panel; set to 1 to always use the panel |
+| Panel threshold | 1 | 1–100 | Item count from which the panel takes over; the default 1 means everything uses the panel — set it to 2+ to send small batches to the native card |
 | Item cap | 100 | 1–500 | Most items in one review; above that the call is rejected with a split-the-batch message and nothing renders |
-| Timeout (ms) | 15 min | 1 s – 24 h | How long to wait for the user; a timeout comes back as cancelled |
+| Timeout (ms) | 15 min | 1 s – 24 h | Total ceiling for one review to stay on the panel; a timeout comes back as cancelled (never a pass). One tool call waits only ~90 s, then returns `pending: true` + `review_id`; call again to resume |
 
 Under **Advanced** there are also `virtualThreshold`, `maxBodyBytes`, `allowExternalPersist` and `injectRoutingRule` (whether the routing rule is injected into the system prompt). These **rarely need changing**; check the effect before you touch them.
 
@@ -97,7 +89,7 @@ Restart the host (`dsh web` / the desktop app) so the plugin loads. To verify, c
 }
 ```
 
-A relative `persist` path lands under the **host process cwd** (not your workspace); to write elsewhere, enable `allowExternalPersist` in Settings.
+A relative `persist` path resolves against the **agent workspace** (falling back to the host process cwd when the host exposes none); writes are confined to the workspace / process cwd subtree unless `allowExternalPersist` is enabled in Settings.
 
 Result (truncated):
 
@@ -159,10 +151,11 @@ English and Chinese are both supported, defaulting to the GUI language and switc
 ## Known limitations
 
 - **The panel needs its client half.** It lives in `conversation.input.dock` and only polls while mounted. A host without `webServer`, a client build that does not load the bundle, or a user on another page all mean “no panel”, and the tool degrades to the native card rather than waiting forever.
+- **The native card has no resume.** Its wait is one-shot; in PTC mode a host execution budget (e.g. `run_code`'s 2-minute default) can cut it off before the user answers — one more reason everything now defaults to the panel.
 - **The panel only accepts a loopback Host.** Its routes refuse any `Host` that is not `localhost` / `127.0.0.1` / `::1` (or the address the socket itself is bound to), so a GUI reached through a reverse proxy or tunnel gets no panel — the tool falls back to the native card and no verdict is lost. The browser console says so once.
 - **On the native card, the explanation is part of the title.** `expect` / `boolDesc` / `detail` are appended to the title with an em dash (“重启 — 不白屏”) rather than sent as the card's own `detail` row: that row is indented 2px against the title's 24px header padding and keeps the primary colour, so it read as a line sticking out to the left of the title. The panel still shows the explanation on its own indented, secondary-coloured line.
 - **Native cards are root-agent only.** `userQuestions.ask()` accepts only the live runtime root, so a subagent that lands on the native card fails with `DELEGATED_CALLER`. The panel path does not go through that host call, so a subagent can still ask through the panel while it is mounted.
-- **Persistence is opt-in.** Nothing about a review is written to disk by default; pass `persist: "<path>"` and the verdicts are saved as UTF-8 JSON (the returned `persisted` field is the absolute path actually written). `persist` is confined to the host process cwd unless the profile sets `allowExternalPersist: true`. Without `persist`, a session that ends mid-review returns `cancelled: true` and the batch must be asked again. The Settings section keeps its own config file (see the cap entry below).
+- **Persistence is opt-in.** Nothing about a review is written to disk by default; pass `persist: "<path>"` and the verdicts are saved as UTF-8 JSON (the returned `persisted` field is the absolute path actually written). `persist` is confined to the agent workspace / host process cwd subtree unless the profile sets `allowExternalPersist: true`. Without `persist`, a session that ends mid-review returns `cancelled: true` and the batch must be asked again. The Settings section keeps its own config file (see the cap entry below).
 - **Item cap (100 by default).** A review above it is **rejected** with a message telling the caller to split the batch; nothing renders. To change the cap, see [Settings](#settings).
 - **Large batches skip off-screen paint.** Above `virtualThreshold` rows the panel applies `content-visibility: auto`, so the browser skips layout and paint for rows outside the viewport while every row keeps its real height — no fixed row height, nothing clipped. The defaults (`maxItems: 100`, `virtualThreshold: 500`) keep this path off; lower `virtualThreshold` in Settings → Advanced to exercise it.
 - **Chinese is only the fallback.** With no panel report and no explicit `lang`, option labels (`confirm`: 通过 / 不通过 / 待定, `bool`: 是 / 否) and `report_text` fall back to Chinese. Anywhere else they follow the UI language, or the `lang` argument.
@@ -189,5 +182,3 @@ MIT — see [LICENSE](LICENSE).
 ## Built with
 
 Built with [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh): the tool, the panel and the skill are written against its host APIs.
-
-[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)

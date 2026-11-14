@@ -198,9 +198,9 @@ def main():
     print("OUT:", final)
     print("ITEMS:", len(data["items"]))
     if args.format == "html":
-        print("NEXT: 告诉用户用「在应用中打开」在浏览器里填；提交失败可用「复制结果」粘回。")
+        print("NEXT: 告诉用户用“在应用中打开”在浏览器里填；提交失败可用“复制结果”粘回。")
     elif args.format in ("xlsx", "csv"):
-        print("NEXT: 用户在「状态」列下拉选 通过/不通过/待定/跳过，填完把文件发回；免逐条点选。")
+        print("NEXT: 用户在“状态”列下拉选 通过/不通过/待定/跳过，填完把文件发回；免逐条点选。")
 
     if args.open and args.format == "html":
         try:

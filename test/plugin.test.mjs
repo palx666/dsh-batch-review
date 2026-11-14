@@ -6,6 +6,7 @@ import path from 'node:path';
 
 import { apply } from '../index.js';
 import { makeBatchReviewTool } from '../lib/tool.js';
+import { BatchReviewPanel } from '../lib/panel.js';
 import { skillProvider, SKILL_NAME } from '../lib/skill.js';
 
 // `apply()` reads the user's settings file under $DSH_HOME. Point it at an empty
@@ -53,7 +54,11 @@ test('apply registers the batch_review tool and the bundled skill provider', () 
 
   assert.equal(ctx.registered.tool.name, 'batch_review');
   assert.equal(typeof ctx.registered.tool.output.render, 'function');
-  assert.deepEqual(ctx.registered.tool.parameters.required, ['items']);
+  // Neither field is required: a first call needs items, a resumed call needs
+  // review_id only, and the tool states that contract itself.
+  assert.deepEqual(ctx.registered.tool.parameters.required, []);
+  assert.equal(typeof ctx.registered.tool.parameters.properties.review_id.type, 'string');
+  assert.equal(ctx.registered.tool.parameters.properties.wait_ms.type, 'number');
   assert.equal('mode' in ctx.registered.tool.parameters.properties, false);
 
   assert.equal(ctx.registered.provider.name, 'batch-review');
@@ -240,6 +245,24 @@ test('a small review still uses the native card even with a mounted panel', asyn
   assert.equal(result.cancelled, false);
 });
 
+test('a single item uses the panel by default (threshold 1)', async () => {
+  const panel = {
+    available: () => true,
+    begin: () => ({ id: 'r1', promise: Promise.resolve({ answers: [{ id: '1', selected: ['通过'] }] }) }),
+  };
+  const ctx = makeCtx(async () => {
+    throw new Error('native card must not be used');
+  });
+  // No panelThreshold passed: the tool's own fallback must match DEFAULTS (1),
+  // so an ordinary one-item review lands on the panel, not the card.
+  const tool = makeBatchReviewTool(ctx, { panel });
+
+  const result = await tool.execute({ items: [{ id: 1, type: 'confirm' }] }, exec);
+  assert.equal(result.surface, 'panel');
+  assert.equal(result.summary.total, 1);
+  assert.equal(result.summary.filled, 1);
+});
+
 test('an unmounted panel falls back to the native card', async () => {
   const panel = {
     available: () => false,
@@ -421,4 +444,181 @@ test('the routing rule is injected by default and can be switched off', () => {
   sections.length = 0;
   apply(withPrompt(), { injectRoutingRule: false });
   assert.equal(sections.length, 0, 'injectRoutingRule: false must not inject anything');
+});
+
+// --- 2026-11-14: 面板不可用时不再「静默降级」 ---
+
+test('a warm but idle panel still gets the review, with a short pickup window', async () => {
+  let seenTimeout = 'unset';
+  const panel = {
+    available: () => false,
+    known: () => true,
+    begin: (request) => {
+      seenTimeout = request.timeoutMs;
+      return { id: 'r1', promise: Promise.resolve({ answers: [{ id: '1', selected: ['通过'] }] }) };
+    },
+  };
+  const ctx = makeCtx(async () => {
+    throw new Error('native card must not be used');
+  });
+  const tool = makeBatchReviewTool(ctx, { panel, panelThreshold: 2 });
+
+  const result = await tool.execute({ items: [{ id: 1 }, { id: 2 }] }, exec);
+
+  assert.equal(result.surface, 'panel');
+  assert.equal(result.degraded, false);
+  assert.equal(result.surface_reason, null);
+  assert.equal(seenTimeout, 20000, 'a stale-but-known panel only gets the pickup probe');
+});
+
+test('an unreachable warm panel falls back to the card and marks the result degraded', async () => {
+  const panel = {
+    available: () => false,
+    known: () => true,
+    begin: () => ({
+      id: 'r1',
+      promise: Promise.reject(Object.assign(new Error('timeout'), { code: 'PANEL_TIMEOUT' })),
+    }),
+  };
+  const ctx = makeCtx(async () => ({ answers: [{ id: '1', selected: ['通过'] }] }));
+  const tool = makeBatchReviewTool(ctx, { panel, panelThreshold: 5 });
+  const items = Array.from({ length: 6 }, (_, index) => ({ id: index + 1, type: 'confirm' }));
+
+  const result = await tool.execute({ items }, exec);
+
+  assert.equal(result.surface, 'cards');
+  assert.equal(result.degraded, true);
+  assert.equal(result.surface_reason, 'panel-unreachable');
+  assert.match(result.report_text, /⚠️/, 'the report says the panel did not take the review');
+  assert.equal(result.cancelled, false, 'the card answer is still used');
+});
+
+test('a never-mounted panel marks the card fallback degraded instead of hiding it', async () => {
+  const panel = {
+    available: () => false,
+    known: () => false,
+    begin: () => {
+      throw new Error('panel must not be used');
+    },
+  };
+  const ctx = makeCtx(async () => ({ answers: [{ id: '1', selected: ['通过'] }] }));
+  const tool = makeBatchReviewTool(ctx, { panel, panelThreshold: 5 });
+  const items = Array.from({ length: 6 }, (_, index) => ({ id: index + 1, type: 'confirm' }));
+
+  const result = await tool.execute({ items }, exec);
+
+  assert.equal(result.surface, 'cards');
+  assert.equal(result.degraded, true);
+  assert.equal(result.surface_reason, 'panel-unmounted');
+  assert.match(result.report_text, /共 6 条/);
+});
+
+test('a BUSY panel fallback is reported as degraded', async () => {
+  const panel = {
+    available: () => true,
+    begin: () => {
+      throw Object.assign(new Error('busy'), { code: 'BUSY' });
+    },
+  };
+  const ctx = makeCtx(async () => ({ answers: [{ id: '1', selected: ['通过'] }] }));
+  const tool = makeBatchReviewTool(ctx, { panel, panelThreshold: 2 });
+
+  const result = await tool.execute({ items: [{ id: 1 }, { id: 2 }] }, exec);
+
+  assert.equal(result.surface, 'cards');
+  assert.equal(result.degraded, true);
+  assert.equal(result.surface_reason, 'panel-busy');
+});
+
+test('a relative persist path resolves against the agent workspace', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'dsh-batch-review-persist-'));
+  try {
+    const ctx = makeCtx(async () => ({ answers: [{ id: '1', selected: ['通过'] }] }));
+    const tool = makeBatchReviewTool(ctx, { panelThreshold: 99 });
+
+    const result = await tool.execute(
+      { persist: 'out/review.json', items: [{ id: 1, type: 'confirm' }] },
+      { agent: { cwd: dir }, signal: exec.signal },
+    );
+
+    assert.equal(result.persisted, path.join(dir, 'out', 'review.json'));
+    const saved = JSON.parse(await readFile(result.persisted, 'utf8'));
+    assert.equal(saved.summary.total, 1);
+    assert.equal(saved.summary.filled, 1);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+
+test('a live panel returns pending with a review_id when the slice expires', async () => {
+  const panel = new BatchReviewPanel({ timeoutMs: 30000, unrefTimer: false });
+  panel.touch();
+  const ctx = makeCtx(async () => {
+    throw new Error('native card must not be used');
+  });
+  const tool = makeBatchReviewTool(ctx, { panel, panelThreshold: 1 });
+
+  const first = await tool.execute(
+    { title: 'T', items: [{ id: 1, type: 'confirm' }], wait_ms: 1000 },
+    exec,
+  );
+  assert.equal(first.pending, true);
+  assert.equal(first.surface, 'panel');
+  assert.ok(first.review_id, 'a pending call hands back the resumable id');
+  assert.match(first.report_text, /review_id/);
+  assert.equal(first.summary.total, 1);
+
+  // The review is still on the panel. Submit it, then resume: the verdicts
+  // arrive on the resumed call, not lost with the expired slice.
+  panel.submit({ answers: [{ id: '1', selected: ['通过'] }] });
+  const resumed = await tool.execute({ review_id: first.review_id, wait_ms: 1000 }, exec);
+  assert.equal(resumed.pending, false);
+  assert.equal(resumed.review_id, first.review_id);
+  assert.equal(resumed.items[0].verdict, '通过');
+  assert.equal(resumed.summary.filled, 1);
+});
+
+test('resuming an unknown review id fails with a clear error', async () => {
+  const panel = new BatchReviewPanel({ timeoutMs: 30000, unrefTimer: false });
+  const tool = makeBatchReviewTool(makeCtx(async () => ({ answers: [] })), { panel, panelThreshold: 1 });
+  await assert.rejects(
+    tool.execute({ review_id: 'br-missing' }, exec),
+    (error) => /续等|resumable/.test(String(error.message)),
+  );
+});
+
+test('wait_ms must be a positive number', async () => {
+  const tool = makeBatchReviewTool(makeCtx(async () => ({ answers: [] })), { panelThreshold: 99 });
+  await assert.rejects(
+    tool.execute({ wait_ms: -5, items: [{ id: 1 }] }, exec),
+    (error) => /wait_ms/.test(String(error.message)),
+  );
+});
+
+test('resuming a live review before submit waits another slice instead of failing', async () => {
+  const panel = new BatchReviewPanel({ timeoutMs: 30000, unrefTimer: false });
+  panel.touch();
+  const ctx = makeCtx(async () => {
+    throw new Error('native card must not be used');
+  });
+  const tool = makeBatchReviewTool(ctx, { panel, panelThreshold: 1 });
+
+  const first = await tool.execute(
+    { title: 'T', items: [{ id: 1, type: 'confirm' }], wait_ms: 1000 },
+    exec,
+  );
+  assert.equal(first.pending, true);
+
+  // Resume while the review is still live (the user has not submitted yet): it
+  // must wait another slice and return pending again, not throw.
+  const second = await tool.execute({ review_id: first.review_id, wait_ms: 1000 }, exec);
+  assert.equal(second.pending, true);
+  assert.equal(second.review_id, first.review_id);
+
+  // A submit completes the review; the next resume collects the verdicts.
+  panel.submit({ answers: [{ id: '1', selected: ['通过'] }] });
+  const third = await tool.execute({ review_id: first.review_id, wait_ms: 1000 }, exec);
+  assert.equal(third.pending, false);
+  assert.equal(third.items[0].verdict, '通过');
 });

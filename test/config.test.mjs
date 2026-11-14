@@ -21,6 +21,10 @@ test('normalize keeps valid numbers and reports each bad value', () => {
   assert.equal(bad.errors.length, 3);
 });
 
+test('the default panel threshold is 1, so a single item uses the panel', () => {
+  assert.equal(DEFAULTS.panelThreshold, 1);
+});
+
 test('injectRoutingRule is a boolean knob with a true default', () => {
   assert.equal(DEFAULTS.injectRoutingRule, true);
   assert.deepEqual(normalize({ injectRoutingRule: false }).values, { injectRoutingRule: false });

@@ -5,8 +5,11 @@
       # the defaults.
       config:
         # Reviews with at least this many items use the dock panel instead of
-        # the native card. 2 = two or more use the panel; 1 = even one does.
-        panelThreshold: 2
+        # the native card. Default 1 = every review uses the panel, even a
+        # single item. Raise it to 2+ only if the native card is wanted for
+        # small batches: the card path has no wait slicing, so a long review
+        # there can be cut off by the host execution budget and must restart.
+        panelThreshold: 1
         # Hard rejection above this many items: the tool refuses and tells the
         # caller to split the batch. The hard ceiling is 500 (human review time),
         # so a larger value is rejected at load time rather than silently capped.
@@ -16,8 +19,11 @@
         # height. Hard floor 50: below that the virtual path is a test rig, not
         # a setting, and small batches fit one screen anyway. Hard ceiling 2000.
         virtualThreshold: 500
-        # How long the panel waits for an answer before returning a cancelled
-        # review (never an implicit pass).
+        # Total budget for one review to stay on the panel (never an implicit
+        # pass). One tool call only waits a ~90 s slice and returns
+        # {pending:true, review_id}; the caller resumes with the same id, so a
+        # short host execution budget cannot end the review. 15 minutes is the
+        # owner's chosen ceiling.
         panelTimeoutMs: 900000
         # Largest panel request body accepted, in bytes. Hard ceiling 128 MB.
         maxBodyBytes: 67108864

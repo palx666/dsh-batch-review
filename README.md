@@ -1,36 +1,36 @@
 # dsh-batch-review
 
-[![ci](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml/badge.svg)](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml)
+[![ci](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml/badge.svg)](https://github.com/palx666/dsh-batch-review/actions/workflows/ci.yml) [![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
 
 [English](README.en.md) | [中文](README.md)
 
 ## 简介
 
-给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 用的多条批阅工具：一次交互收齐反馈。Agent 在向用户询问、确认或申请批复多个问题时，直接呼出面板；用户逐条点完、一次提交，结论以结构化数据回到 Agent，不打断工作流。
+给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 用的多条批阅工具：原提问卡片的“升级版”，旨在优化 Agent 在向用户询问、确认或申请批复多个问题时的交互。批阅面板可同时包含多组/多个问题，用户通过简单的点击选项或者输入文本批量或逐条作答，结论会以结构化数据回到 Agent，不打断工作流。
 
 ## 硬规则：凡需用户表态，一律调用 `batch_review`
 
 **这条规则随插件自动注入，不需要额外配置**：插件在 system prompt 注册 `dsh-batch-review:routing` 段（每次请求生效），并内置 `batch-review-table` 技能覆盖同一套判据。
 
 - **凡需要用户给出反馈**——确认、选择、批准、驳回、评分、评论——就给可点界面，不要用文字问［要不要 / 行不行］。
-- **2 条以上需要独立结论** → `batch_review`；**单条问题或计划批准** → `ask_user_question`。
+- **凡需要用户表态 → `batch_review`**——单条也走面板（默认阈值 1）；**只有计划批准 / 宿主审批类** → `ask_user_question`（只有原生接口能发出这两种 intent，`batch_review` 渲染不了）。
 - **未表态 ≠ 通过**：`filled: false` 必须追问，不能当成已通过。
 
-**不想自动注入？** 设置 → 左侧导航［批阅面板］→ 高级设置，取消［注入路由规则到 system prompt］（等价于配置 `injectRoutingRule: false`），**重启 DSH 后生效**。关闭后插件不再往 system prompt 写任何东西；此时**推荐自己维护规则**：在你的 `AGENTS.md` 里写清楚**什么时候该调用 `batch_review`**（哪些场景用批量、哪些用单条 `ask_user_question`），否则 Agent 不会主动想到它（工具还在，但只能靠你点名）。
+**不想自动注入？** 设置 → 左侧导航［批阅面板］→ 高级设置，取消［注入路由规则到 system prompt］（等价于配置 `injectRoutingRule: false`），**重启 DSH 后生效**。关闭后插件不再往 system prompt 写任何东西；此时**推荐自己维护规则**：在你的 `AGENTS.md` 里写清楚**什么时候该调用 `batch_review`**（普通表态场景都用它；只有计划批准 / 审批类才用 `ask_user_question`），否则 Agent 不会主动想到它（工具还在，但只能靠你点名）。
 
 ## 实现形式
 
-Agent 调一次 `batch_review`，把清单交给 Web UI——单条用原生提问卡片，达到面板阈值（默认 2 条）及以上走输入框上方的一屏面板；用户逐条表态后，工具返回一份结构化结果：每条一个结论 + 备注，外加一段可直接贴进回复的 `report_text`。面板由 DSH 自带的 web server 经 `/api/batch-review/*` 提供，**无需另开应用、不占额外端口**，而且［没表态］永远不会被当成［通过］。
+Agent 调一次 `batch_review`，把清单交给 Web UI——默认面板阈值 1，单条与多条都走输入框上方的一屏面板（面板不在线时才退回原生卡片）；用户逐条表态后，工具返回一份结构化结果：每条一个结论 + 备注，外加一段可直接贴进回复的 `report_text`。面板由 DSH 自带的 web server 经 `/api/batch-review/*` 提供，**无需另开应用、不占额外端口**，而且［没表态］永远不会被当成［通过］。
 
 ```text
 Agent → batch_review({ title, items: [6 条] })
-      → 一屏面板（达到阈值且面板在线）或原生卡片
+      → 一屏面板（默认阈值 1，面板在线）或原生卡片（降级）
       → { items:[{verdict,note,filled}], summary, report_text }
 ```
 
 ## 它做什么
 
-- **`batch_review` 工具**：Agent 一次传入全部条目；每条映射为一道题（原生卡片或面板条目）；返回 `items[].{id,title,type,verdict,note,filled}` + `summary` + `report_text`。
+- **`batch_review` 工具**：Agent 一次传入全部条目；每条映射为一道题（默认走面板条目）；返回 `items[].{id,title,type,verdict,note,filled}` + `summary` + `report_text`。
 - **未填 = 未通过（fail-closed）**：跳过或留空的条目返回 `filled: false`，报告里单列［未填：…（没填不代表通过，需要单独追问）］。会话中断则返回 `cancelled: true`、`items: []`——不会静默通过。
 - **五种条目类型**：`confirm`（通过 / 不通过 / 待定）、`bool`、`choice`、`text`、`scale`。
 - **按需多选**：条目设 `multiSelect: true` 即可多选；结果里 `verdict` 用顿号拼接所有选项，同时新增 `selected[]` 数组保留完整选择。
@@ -39,15 +39,7 @@ Agent → batch_review({ title, items: [6 条] })
 
 ## 和原生卡片的关系
 
-`batch_review` 建立在 DSH 原生提问卡片之上：条数少时直接用它，达到阈值时换成输入框上方的一屏面板，两者返回同一份结果。
-
-**阈值可设置**：`panelThreshold`（默认 2，范围 1–100）决定［多少条起走面板］，**想全部走面板就设为 1**（单条也用面板，不再走原生卡片）。设置方法见[设置说明](#设置说明)。
-
-| 规模 | 界面 | 你看到的 |
-|---|---|---|
-| 低于阈值（默认 1 条） | 原生卡片（与 `ask_user_question` 同一个组件） | 一次一题，翻页作答 |
-| 达到阈值且面板在线（默认 ≥2 条） | **一屏面板**（输入框上方） | 全部条目一次列出：逐条点结论 + 独立备注框，一次提交 |
-| 达到阈值但面板不在 | 退回原生卡片 | 翻页作答，不会等一个不存在的面板 |
+`batch_review` 建立在 DSH 原生提问卡片之上，可以理解为是它的“升级版”：正常情况下完全替代原生卡片，只在特定情况（面板调用失败、手动设定等）会回退到原生卡片。若希望在较少条目时使用原生卡片，可在设置中调高面板触发阈值。
 
 面板只在挂载期间轮询 `GET /api/batch-review/state`；不在线（用户不在会话页、客户端未加载、DSH 没有 webServer）时，`batch_review` 自动降级为原生卡片，不会卡住。返回里的 `surface` 字段写明这次是 `panel` 还是 `cards`。
 
@@ -61,9 +53,9 @@ Agent → batch_review({ title, items: [6 条] })
 
 | 设置 | 默认 | 范围 | 作用 |
 |---|---|---|---|
-| Panel threshold（面板阈值） | 2 | 1–100 | 达到多少条时从原生卡片换成面板；设为 1 则全部走面板 |
+| Panel threshold（面板阈值） | 1 | 1–100 | 多少条起走面板；默认 1 = 全部走面板，设回 2+ 才让低于阈值的批次走原生卡片 |
 | Item cap（条目上限） | 100 | 1–500 | 一次批阅最多几条；超过直接驳回并提示拆批，不渲染 |
-| Timeout (ms)（超时） | 15 分钟 | 1 秒–24 小时 | 等用户回答的最长时间；超时按取消返回 |
+| Timeout (ms)（超时） | 15 分钟 | 1 秒–24 小时 | 一次批阅在面板上的**总等待上限**；超时按取消返回（不会变成通过）。单次工具调用只等约 90 秒，然后返回 `pending: true` + `review_id`，需要再调一次续等 |
 
 ［高级设置］里另有：`virtualThreshold`（虚拟滚动阈值）、`maxBodyBytes`（请求体上限）、`allowExternalPersist`（允许持久化到工作目录外）、`injectRoutingRule`（是否把路由规则注入 system prompt）。这些**一般不需要改**，调整前请确认影响。
 
@@ -97,7 +89,7 @@ dsh plugin --profile <profile> add https://github.com/palx666/dsh-batch-review/a
 }
 ```
 
-`persist` 用相对路径时，实际会落在**宿主进程的 cwd** 下（不是你的工作区）；要写到别处，需在设置里打开 `allowExternalPersist`。
+`persist` 用相对路径时，按**agent 的工作区**解析（宿主没有暴露工作区时退回宿主进程 cwd）；默认只允许写工作区 / 进程 cwd 子树，要写到别处需在设置里打开 `allowExternalPersist`。
 
 返回（截断）：
 
@@ -159,10 +151,11 @@ dsh plugin --profile <profile> add https://github.com/palx666/dsh-batch-review/a
 ## 已知限制
 
 - **面板依赖客户端半区**：面板挂在 `conversation.input.dock`，只在挂载时轮询。宿主没有 `webServer`、客户端没加载 bundle、或用户不在会话页，都等于［面板不在线］，工具会降级到原生卡片而不是一直等。
+- **原生卡片没有续等**：等待是一次性的，例如在 PTC 模式下宿主执行预算（如 `run_code` 默认 2 分钟）会在用户作答前掐断它，这也是现在默认都走面板的原因之一。
 - **面板只接受回环 Host**：接口拒绝 `localhost` / `127.0.0.1` / `::1`（或 socket 自身绑定地址）以外的 `Host`，所以经反代、隧道访问 GUI 时面板不会出现，工具退回原生卡片、结论不丢；浏览器控制台会提示一次。
 - **原生卡片上说明文字并入标题**：`expect` / `boolDesc` / `detail` 会用破折号接在标题后（如［重启 — 不白屏］），不再作为宿主卡片的 `detail` 行下发——那一行的左边距只有 2px（标题所在的 header 是 24px）且继承主色，看起来像顶到标题左侧外的一条线。面板仍把说明作为独立的、缩进且灰色的说明行显示。
 - **原生卡片只认 root Agent**：`userQuestions.ask()` 只接受 live runtime root，子代理走到卡片路径会拿到 `DELEGATED_CALLER`。面板路径不经过这个宿主调用，所以面板在线时子代理仍能通过面板提问。
-- **持久化需显式开启**：批阅结果默认不落盘；传 `persist: "<路径>"` 才会把结论写成 UTF-8 JSON（返回的 `persisted` 是实际写入的绝对路径）。`persist` 默认只能写宿主进程 cwd 子树，写到别处需在配置里设 `allowExternalPersist: true`。不传的话，会话中途结束就是 `cancelled: true`，需要重新问一遍。设置页会单独写自己的配置文件（见下一条）。
+- **持久化需显式开启**：批阅结果默认不落盘；传 `persist: "<路径>"` 才会把结论写成 UTF-8 JSON（返回的 `persisted` 是实际写入的绝对路径）。`persist` 默认只能写 agent 工作区 / 宿主进程 cwd 子树，写到别处需在配置里设 `allowExternalPersist: true`。不传的话，会话中途结束就是 `cancelled: true`，需要重新问一遍。设置页会单独写自己的配置文件（见下一条）。
 - **条数上限（默认 100）**：超过即**驳回**并提示调用方拆成多批，不渲染。要调上限见[设置说明](#设置说明)。
 - **大批次跳过屏外绘制**：超过 `virtualThreshold` 条时面板给行加 `content-visibility: auto`，浏览器跳过视口外的布局与绘制，但每行保留真实高度——没有固定行高，不会裁切内容。默认值（`maxItems: 100`、`virtualThreshold: 500`）下这条路径不触发；要验证就在［设置 → 高级设置］里调低 `virtualThreshold`。
 - **中文只是兜底**：既无面板上报、也无显式 `lang` 时，选项标签（`confirm`：［通过 / 不通过 / 待定］，`bool`：［是 / 否］）与 `report_text` 回退中文；其余情况跟随界面语言或 `lang` 参数。
@@ -189,5 +182,3 @@ MIT，见 [LICENSE](LICENSE)。
 ## 制作
 
 使用 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）制作：工具、面板与技能均基于其 API 编写。
-
-[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)

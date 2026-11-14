@@ -82,8 +82,8 @@ test('toQuestion maps bool, scale, choice and text items', () => {
     options: [{ v: 'A', t: '直连' }, { v: 'B', t: '转发' }],
   }, 0);
   assert.deepEqual(choice.options, [
-    { label: '直连', description: 'A' },
-    { label: '转发', description: 'B' },
+    { label: '直连' },
+    { label: '转发' },
   ]);
 
   const text = toQuestion({ type: 'text', label: '描述现象' }, 0);
@@ -119,17 +119,20 @@ test('choiceOf tolerates null, undefined and bare-string options', () => {
   assert.deepEqual(toQuestion({ type: 'choice', options: [] }, 0).options, []);
 });
 
-test('choice option notes prefer d and fall back to v', () => {
+test('choice option notes come from d only; v is a stored value, not a note', () => {
   const withD = toQuestion({ type: 'choice', label: 'x', options: [
     { v: 'A', t: '直连', d: '在本机直接连 18080' },
   ] }, 0);
   assert.deepEqual(withD.options, [{ label: '直连', description: '在本机直接连 18080' }],
-    'an explicit d wins over the stored value');
+    'an explicit d supplies the note');
 
+  // A stored value that happens to be a letter must never surface as a note:
+  // the panel already numbers options A/B/C in array order, so showing v= C next
+  // to the panel's C read as a second, contradictory numbering (2026-11-14).
   assert.deepEqual(
     toQuestion({ type: 'choice', label: 'x', options: [{ v: 'B', t: '转发' }] }, 0).options,
-    [{ label: '转发', description: 'B' }],
-    'v still supplies the note when d is absent (back-compat)',
+    [{ label: '转发' }],
+    'v is not rendered when d is absent',
   );
 
   assert.deepEqual(
@@ -140,8 +143,8 @@ test('choice option notes prefer d and fall back to v', () => {
 
   assert.deepEqual(
     toQuestion({ type: 'choice', label: 'x', options: [{ v: 'C', t: '空说明', d: '   ' }] }, 0).options,
-    [{ label: '空说明', description: 'C' }],
-    'a blank d is ignored rather than rendered as an empty line',
+    [{ label: '空说明' }],
+    'a blank d is ignored rather than falling back to v',
   );
 });
 
@@ -224,4 +227,17 @@ test('options without a type are a choice', () => {
     [{ label: 'A' }, { label: 'B' }]);
   assert.equal(buildRows([{ id: 1, options: [{ t: 'A' }] }], { answers: [] })[0].type, 'choice');
   assert.equal(buildRows([{ id: 2 }], { answers: [] })[0].type, 'confirm', 'still confirm without options');
+});
+
+test('an exclusive option keeps its marker through to the panel', () => {
+  const question = toQuestion({
+    type: 'choice',
+    label: 'x',
+    options: [{ t: '打 tag' }, { t: '都不做', exclusive: true }, { t: 'none', none: true }],
+  }, 0);
+  assert.deepEqual(question.options, [
+    { label: '打 tag' },
+    { label: '都不做', exclusive: true },
+    { label: 'none', exclusive: true },
+  ]);
 });

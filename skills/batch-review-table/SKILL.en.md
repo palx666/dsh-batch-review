@@ -29,39 +29,52 @@ shape; it is not a licence to type questions for "small" cases.
 
 | Criterion | `ask_user_question` | `batch_review` |
 |---|---|---|
-| Item count | 1 | 2 or more |
+| When | Plan approval (plan-review) and host approval prompts — only the native API can emit those intents | Everything else where the user owes a decision: confirm, choose, approve, reject, rate, comment (**one item or many**) |
+| Item count | 1 | 1 or more (default panel threshold 1 = a single item also uses the panel) |
 | Item relation | pick one/several (parallel or exclusive options) | each item needs an **independent verdict** |
 | Result shape | `selected[]` | pass / fail / pending + note |
 | Multi-select | ✅ | ✅ (`multiSelect: true` on an item) |
-| Plan approval (plan-review) | ✅ | ❌ |
+| Plan approval (plan-review) | ✅ (the only entry) | ❌ (items carry no intent/plan payload) |
 | Summary text | ❌ | ✅ `report_text` |
 | Result contract | `answers[]` | `items[].filled/verdict/note` |
 
 Decision order (first match wins):
 
 ```
-1. Plan approval needed                                  → ask_user_question
-2. 2+ items, each needs an independent verdict           → batch_review
-3. A single ordinary choice/confirmation                 → ask_user_question
-4. Many items (a dozen+), one-screen overview, archival  → HTML review page (see "Fallback")
-5. None of the above                                     → see "When even this does not fit"
+1. Plan approval (plan-review) or host approval         → ask_user_question
+2. Everything else where the user owes a decision
+   (a single ordinary question, 2+ independent items)   → batch_review
+3. Many items (a dozen+), one-screen overview, archival  → HTML review page (see "Fallback")
+4. None of the above                                     → see "When even this does not fit"
 ```
 
-Both tools render the same native card in the Web UI (`batch_review` also goes
-through `userQuestions.ask`); the difference is the data contract, not the look.
+Both tools use the same native card component in the Web UI (`batch_review` also
+goes through `userQuestions.ask`); the difference is the data contract. **The
+default threshold is 1**: ordinary requests always use `batch_review`, which
+renders the one-screen panel, and no longer the native card.
 
-**Know the card's real shape**: one `batch_review` call puts every item into the
-same card, but the UI shows **one question at a time**, paging with previous/next.
-More items means more paging — it is "ask once, answer page by page", not a
-one-screen overview.
+**Know the card's real shape**: the native card is only the fallback when the
+panel is offline. There the UI shows **one question at a time**, paging with
+previous/next; more items means more paging. Under the default threshold the
+panel should be used instead (below).
 
-**2+ items switch to the one-screen panel**: once `dsh-batch-review` is installed
-there is a review panel above the composer; with 2+ items and the panel online,
-`batch_review` uses the panel automatically (all items on one screen, per-item
-verdict buttons plus a note field, one submit). You do **not** need a different
-tool or parameter. When the panel is offline (the user is on another page or the
-client bundle is not loaded) it falls back to the native card. The returned
-`surface` field says whether `panel` or `cards` answered.
+**Default panel threshold is 1: even a single item uses the one-screen panel**:
+once `dsh-batch-review` is installed there is a review panel above the composer;
+`panelThreshold` defaults to 1, so even a one-item review uses the panel (all
+items on one screen, per-item verdict buttons plus a note field, one submit).
+You do **not** need a different tool or parameter. The native card is used in
+only two cases: ① the panel is offline (the user is on another page, the client
+bundle is not loaded, or the host has no webServer); ② the user manually raised
+`panelThreshold` above the item count. The returned `surface` field says whether
+`panel` or `cards` answered.
+
+**The native card is a degraded path, and it has no slicing/resume**: do not
+route to it on purpose under the default threshold. If the host execution budget
+(e.g. `run_code`'s 2-minute default) cuts the card path off, there is no
+`review_id` to resume with — the review must be restarted. For a stable long
+wait, keep the threshold at 1 and keep the panel online; when the panel really is
+offline, tell the user and wait until it is available rather than sending a big
+batch to the card.
 
 ## `batch_review` usage
 
@@ -82,15 +95,25 @@ Pass every item in one call:
 - `type`: `confirm` (pass/fail/pending), `choice`, `bool`, `text`, `scale`;
 - Order a `choice` item's options by importance: **the recommended option
   goes first** (the panel numbers by array order, so it becomes A), the rest
-  follow as B, C…; do not write a letter or number prefix in the option text
-  (`t`/`label`). Cite options by the panel letter in prose ("A (recommended) /
-  B / C"). A caller-written marker (`B …`, `1. …`, `2、…`) is kept verbatim
+  follow as B, C…; do not write a letter or number prefix — or a combination
+  such as "A+B" — in the option text (`t`/`label`); say "both" instead. The
+  verdict is the option text itself, so keep it free of numbering. Cite options
+  by the panel letter in prose ("A (recommended) / B / C"). A caller-written
+  marker (`B …`, `1. …`, `2、…`) is kept verbatim
   instead of being numbered twice, but that is only a compatibility path, not
   the recommended spelling;
-- `multiSelect` (optional): `"multiSelect": true` lets one item take several
-  answers; `verdict` joins them with the active language's separator (［、］ in
-  Chinese, ", " in English) and `selected[]` keeps the array, and the report lists
-  them together;
+- **When the options can be combined, use multi-select — never invent a combined
+  option.** If several actions can be adopted together (e.g. change the host config
+  *and* the plugin), set `"multiSelect": true` on that item, list each independently
+  selectable action as its own option, and add a "none" option (e.g. `A`, `B`,
+  `都不做`); ticking A+B is the combination. Do **not** put a combination such as
+  "A+B" into a single option, and do not write letter prefixes in option text — the
+  panel numbers options by array order, so combination text fights the numbering.
+  `verdict` joins the labels with the active language's separator (［、］ in Chinese,
+  ", " in English) and `selected[]` keeps the array. Mark a **mutually exclusive**
+  option (e.g. "都不做"/"none") with `"exclusive": true` — a label reading 都不做 or
+  none is recognised automatically: ticking it clears the others, ticking another
+  clears it, and the server rejects a submit that combines both;
 - `id` must be unique: answers map back by id, and duplicate ids are rejected by
   the tool;
 - `persist` (optional): also writes the result as UTF-8 JSON so it survives the
@@ -98,6 +121,13 @@ Pass every item in one call:
   failed write lands in `persist_error` (the review itself is still returned);
 - the tool waits for the user to click — **do not call it twice**, send every item
   in one call;
+- returned `pending: true`: the panel is still open; only this call's **wait
+  slice** expired (~90 s). It is neither a failure nor a pass, and nothing the
+  user typed is lost. You **must** call `batch_review({ "review_id": "<the returned
+  review_id>" })` again (without items) until `pending` is `false`;
+- inside `run_code`, set the program `timeoutMs` to **>= 900000**, or make one
+  `batch_review` call per program; the default 2-minute budget ends the wait early
+  (the review survives and a resumed call collects it);
 - returned `items[].filled`: `false` = the user took no position, **ask again; it
   is never a pass**;
 - returned `cancelled: true`: the session was interrupted/cancelled, **there are
@@ -159,8 +189,10 @@ paste the JSON back.
 
 ## Pre-flight checklist
 
-- Check the tool list first: with `batch_review`, use the review channel; without
-  it, fall back to `ask_user_question` or the HTML page;
+- Check the tool list first: with `batch_review`, use the review channel (**a
+  single item included**, default threshold 1); only plan approval / host
+  approval prompts use `ask_user_question`, and if neither exists fall back to
+  the HTML page;
 - Panel offline / archival needed / item count above `maxItems` → use the HTML
   page, do not force the card;
 - The HTML path needs four files: `SKILL.md`, `assets/review.html`,

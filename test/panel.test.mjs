@@ -187,13 +187,29 @@ test('the state payload carries the submit token', () => {
   assert.ok(panel().state().token.length > 0, 'a random token is generated per panel');
 });
 
-test('aborting the call settles the waiting review as CANCELLED', async () => {
-  const p = panel();
+test('aborting the tool call no longer destroys the waiting review', async () => {
+  const p = panel({ timeoutMs: 5000 });
   const controller = new AbortController();
-  const { promise } = p.begin({ title: 'T', items: [], signal: controller.signal });
+  const { id, promise } = p.begin({ title: 'T', items: [], signal: controller.signal });
   controller.abort();
-  await assert.rejects(promise, (error) => error.code === 'CANCELLED');
-  assert.equal(p.state().pending, null, 'an aborted review does not stay BUSY');
+  // The review outlives the aborted call on purpose: a short host execution
+  // budget must not throw away what the user already typed. A later submit
+  // still settles the same promise.
+  assert.notEqual(p.peek(id), null, 'the review survives an aborted call');
+  assert.equal(p.state().pending.id, id);
+  p.submit({ answers: [] });
+  assert.deepEqual(await promise, { answers: [] });
+});
+
+test('a settled review stays queryable by id for a later resume', async () => {
+  const p = panel({ timeoutMs: 5000 });
+  const { id, promise } = p.begin({ title: 'T', items: [] });
+  p.submit({ answers: [{ id: '1', selected: ['通过'] }] });
+  await promise;
+  assert.deepEqual(p.recentAnswer(id), { answers: [{ id: '1', selected: ['通过'] }] });
+  assert.equal(p.recent(id).settled, true);
+  assert.equal(p.peek(id), null, 'a settled review is no longer pending');
+  assert.equal(p.recentAnswer('missing'), null);
 });
 
 test('an already-aborted signal is refused before the review is queued', () => {
@@ -319,4 +335,36 @@ test('the config route refuses a rebound Host too', async () => {
     [Symbol.asyncIterator]: async function* () { yield Buffer.from('{"maxItems":20}', 'utf8'); },
   }, response);
   assert.equal(response.status, 403);
+});
+
+test('known() survives presence expiry so a reloaded page can still be offered the review', () => {
+  const p = panel();
+  assert.equal(p.known(), false);
+  p.touch();
+  assert.equal(p.available(Date.now() + 60_000), false, 'presence window has passed');
+  assert.equal(p.known(), true, 'the client is remembered');
+});
+
+test('begin honours a per-call timeout instead of the panel default', async () => {
+  const p = panel({ timeoutMs: 5_000 });
+  const { promise } = p.begin({ title: 'probe', items: [], timeoutMs: 20 });
+  await assert.rejects(promise, (error) => error.code === 'PANEL_TIMEOUT');
+});
+
+
+test('a multi-select cannot submit an exclusive option together with another', () => {
+  const p = panel({ timeoutMs: 5000 });
+  const { promise } = p.begin({ title: 'T', items: [
+    { id: '1', multiSelect: true, options: [
+      { label: '打 tag' },
+      { label: '都不做', exclusive: true },
+    ] },
+  ] });
+  promise.catch(() => {});
+  assert.throws(
+    () => p.submit({ answers: [{ id: '1', selected: ['打 tag', '都不做'] }] }),
+    (error) => error.code === 'CONFLICTING_SELECTION',
+  );
+  const received = p.submit({ answers: [{ id: '1', selected: ['都不做'] }] });
+  assert.equal(received.received, 1);
 });

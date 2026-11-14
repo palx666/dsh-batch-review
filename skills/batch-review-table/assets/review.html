@@ -177,8 +177,8 @@
   <main class="list" id="list"></main>
 
   <footer class="ft">
-    <p>「复制结果」只导出<strong>已填写</strong>的条目 —— 没填的不代表通过。刷新前先点「复制结果」或「提交给我」带走。</p>
-    <p>顺序模式：点条目可展开任意一条；填完自动跳到下一条；某条不通过时会问要不要把后面未执行的条目标成「被阻塞」。独立模式没有这个询问。</p>
+    <p>“复制结果”只导出<strong>已填写</strong>的条目 —— 没填的不代表通过。刷新前先点“复制结果”或“提交给我”带走。</p>
+    <p>顺序模式：点条目可展开任意一条；填完自动跳到下一条；某条不通过时会问要不要把后面未执行的条目标成“被阻塞”。独立模式没有这个询问。</p>
   </footer>
 </div>
 
@@ -472,7 +472,7 @@ function renderList(){
   const html = DATA.items
     .filter(function(it){ return !state.onlyOpen || !isDone(it.id); })
     .map(itemHTML).join("");
-  $("list").innerHTML = html || '<p style="color:var(--muted)">全部填完了 🎉 点「复制结果」或「提交给我」。</p>';
+  $("list").innerHTML = html || '<p style="color:var(--muted)">全部填完了 🎉 点“复制结果”或“提交给我”。</p>';
   if(state.mode === "sequential" && state.focus !== null && state._scroll){
     const el = $("list").querySelector('.item[data-id="' + state.focus + '"]');
     if(el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -568,7 +568,7 @@ function setVerdict(id, v){
       pendingFailId = id;
       $("blockTitle").textContent = "第 " + id + " 条未通过";
       $("blockMsg").textContent = "后面还有 " + rest.length + " 条（第 " + rest[0].id + "–" + rest[rest.length - 1].id +
-        " 条）大概率还没执行。要把它们标成「被阻塞、未执行」吗？这样我不会把它们当成没看，也不会当成通过。";
+        " 条）大概率还没执行。要把它们标成“被阻塞、未执行”吗？这样我不会把它们当成没看，也不会当成通过。";
       $("blockDlg").showModal();
     } else {
       advanceAfter(id);
@@ -813,13 +813,13 @@ async function submitReport(){
   btn.textContent = "提交给我";
   if(httpErr){
     setChanStatus("服务出错：" + httpErr, false);
-    toast("服务返回 " + httpErr + "，改用「复制结果」");
+    toast("服务返回 " + httpErr + "，改用“复制结果”");
   } else if(hasSubmitted){
     setChanStatus("通道已关闭，要改请在聊天里说一声", false);
     toast("通道已关闭，要改请在聊天里说一声");
   } else {
-    setChanStatus("回传通道：离线（用「复制结果」）", false);
-    toast("连不上本地服务（没启动或被浏览器拦），改用「复制结果」");
+    setChanStatus("回传通道：离线（用“复制结果”）", false);
+    toast("连不上本地服务（没启动或被浏览器拦），改用“复制结果”");
     scheduleReconnect();
   }
   showCopyPanel(buildReport());
@@ -882,8 +882,8 @@ $("btnAllPass").addEventListener("click", function(){
   const openItems = DATA.items.filter(function(it){ return !isDone(it.id) && !state.items[it.id].blocked && isConfirm(it); });
   if(!openItems.length){ toast("没有需要处理的条目了"); return; }
   const msg = (state.mode === "sequential")
-    ? "把剩余 " + openItems.length + " 条标记为「通过（未实测）」？"
-    : "把全部 " + openItems.length + " 条标记为「通过」？";
+    ? "把剩余 " + openItems.length + " 条标记为“通过（未实测）”？"
+    : "把全部 " + openItems.length + " 条标记为“通过”？";
   if(!confirm(msg)) return;
   openItems.forEach(function(it){
     const s = state.items[it.id];
@@ -978,7 +978,7 @@ $("sub").textContent = (DATA.subtitle ? DATA.subtitle + " · " : "") + "共 " + 
   bar.className = "envbar warn";
   bar.innerHTML =
     '<b>预览沙箱：内容不会自动保存，刷新即丢。</b>' +
-    '<span>请用「在应用中打开」在浏览器里填；文件路径：</span>' +
+    '<span>请用“在应用中打开”在浏览器里填；文件路径：</span>' +
     '<code>' + esc(FILE_PATH) + '</code>' +
     '<button class="btn" id="btnCopyPath" type="button">复制路径</button>';
   $("btnCopyPath").addEventListener("click", function(){

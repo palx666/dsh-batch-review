@@ -1,16 +1,24 @@
 # Changelog
 
-## 1.0.2 — 2026-11-13
+## 1.1.0 — 2026-11-14
+
+> 远端只有 1.1.0 这一个 release（没有中间的 1.0.3–1.0.9）；本版汇总 1.0.1 以来的全部改动，下方各版本条目是各自的详细记录。
 
 ### 修复
 
-- **手写字母会重复编号**：调用方在选项文字里写了字母（如 `B 双模型档`）时，面板会再叠加一层 A./B./C.，显示成 `A. B 双模型档`。现在识别 `B …`、`A. …`、`A、…`、`A：…`、`A) …` 等字母前缀，原样沿用、不再重复编号。
-- **手写数字同样重复编号**：`1. …`、`2、…` 会显示成 `A. 1. …`，现在一并识别并沿用；数字后接空格（如 `5 分钟超时`）仍按普通文字处理，不当作编号。
-- **顺序会被调用方打乱**：调用方把推荐项放到第一位、字母却写成 B 时，界面会出现 B→C→A 的跳序。技能与工具描述现在明确要求「推荐项排第一」（面板按数组顺序编号，因此它就是 A），并避免调用方自己写字母或数字。
+- 修复了 PTC 模式下，面板会被默认等待规则强行掐断的问题。
+- 修复了工具调用方在给选项自行编号时，面板重复编号和顺序混乱的问题。
+- 修复了面板静默降级、多条目被截断的问题。
+- 修复了相对 persist 落到 profile 目录的问题。
 
 ### 变更
 
-- `engines.dsh` 未变（`>=0.2.1-rc.3 <=0.2.2`）。
+- 优化了多选的调用逻辑。
+- 现在默认 1 条也走批阅面板（相比原生多一栏备注、且不会被掐断），只在面板不在线 / 用户手动调高阈值时降级为原生面板。
+
+### 已知
+
+- batch_review 暂不支持 plan-review / 审批类 intent。
 
 ## 1.0.1 — 2026-11-07
 
@@ -55,7 +63,7 @@ First public release, merging the former `batch-review-tool` plugin and the
   split-the-batch message instead of being rendered. Tunables live in three
   layers, lowest first: built-in defaults, the `cordis.patch.yml` `config` block,
   then `~/.dsh/dsh-batch-review.config.json` written by the Settings section
-  (Settings → left-nav 「批阅面板」). A save writes only the keys that changed, so
+  (Settings → left-nav “批阅面板”). A save writes only the keys that changed, so
   the cordis layer keeps applying to everything else. Hard limits: `maxItems`
   1–500, `virtualThreshold` 50–2000, `maxBodyBytes` 1 KB–128 MB.
 - Panel rows above `virtualThreshold` (500 by default) render with
@@ -74,7 +82,7 @@ First public release, merging the former `batch-review-tool` plugin and the
 
 ### Settings
 
-- New `lib/config.js` and a Settings → left-nav 「批阅面板」 section: edit
+- New `lib/config.js` and a Settings → left-nav “批阅面板” section: edit
   `panelThreshold`, `maxItems`, `panelTimeoutMs` (plus the advanced
   `virtualThreshold`, `maxBodyBytes`, `allowExternalPersist`) without editing YAML
   and without a restart. Writes go to `~/.dsh/dsh-batch-review.config.json`.
@@ -109,7 +117,7 @@ First public release, merging the former `batch-review-tool` plugin and the
 - A reverse proxy or tunnel gets no panel: the routes only accept a loopback `Host`,
   so a GUI reached through one falls back to the native card. The browser console
   says so once — otherwise "the panel never appears" was undiagnosable.
-- An item's explanation is folded into the native card's title (e.g. 「重启 — 不白屏」)
+- An item's explanation is folded into the native card's title (e.g. “重启 — 不白屏”)
   instead of using the host card's separate `detail` row: that row is indented 2px
   against the title's 24px header padding and keeps the primary colour, so it read
   as a line sticking out to the left of the title. The panel still renders the
